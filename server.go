@@ -38,6 +38,9 @@ func serve(listener net.Listener, handler ServerHandler, saveReadData bool) os.E
     connectionCounterWriter := make(chan int)
     //get the current counter
     connectionCounterReader := make(chan int)
+	
+	//give each connection an id
+	connId := 0
 
     //the go routine that maintains the connection counter
     //it blocks on receiving an counter update or sending the current counter 
@@ -72,9 +75,14 @@ func serve(listener net.Listener, handler ServerHandler, saveReadData bool) os.E
                 //after exiting the loop, the connection is closed
                 defer func ()  {
                     connection.Close()
+                    /*
                     if r := recover(); r != nil {
+                        _, file, line, ok := runtime.Caller(0)
+                        if ok {
+                            log.Printf("caller is %q:%d\n", file, line)
+                        }
                         log.Printf("Recovered in server handler %v\n", r)
-                    }
+                    }*/
                     connectionCounterWriter <- -1
                 }()
                 connectionCounterWriter <- 1
@@ -90,6 +98,7 @@ func serve(listener net.Listener, handler ServerHandler, saveReadData bool) os.E
                     }
                 }
             }()
+			connId += 1
     }
     panic("not reached")
 }
