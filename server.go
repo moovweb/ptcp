@@ -31,93 +31,73 @@ func listen(addr string) (listener net.Listener, err os.Error) {
  * then call connection.Handler to reply to them.
  */
 
-func serve(listener net.Listener, handler ServerHandler, saveReadData bool) os.Error {
-    defer listener.Close()
-
-    //A server handler routine sends -1/1, indicating it starts handling on a connection or closes it.
-    connectionCounterWriter := make(chan int)
-    //get the current counter
-    connectionCounterReader := make(chan int)
+func serve(listener net.Listener, NewServerHandler func() ServerHandler, poolSize int, saveReadData bool) os.Error {
+	defer listener.Close()
 	
-	//give each connection an id
-	connId := 0
-
-    //the go routine that maintains the connection counter
-    //it blocks on receiving an counter update or sending the current counter 
-    go func() {
-        counter := 0
-        for {
-            select {
-            case connectionCounterReader <- counter:
-            case update := <- connectionCounterWriter:
-                counter += update
-            }
-        }    
-    }()
-
+	//create a queue to share incoming connections
+	connectionQueue := make(chan *TcpConnection)
+	
+	//create a number of handler goroutines to process connections
+	for i := 0; i < poolSize; i ++ {
+		go handleConnections(connectionQueue, NewServerHandler)
+	}
+	
     for {
-            conn, err := listener.Accept()
-            if err != nil {
-                if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
-                    log.Printf("Server: Accept error: %v", err)
-                    continue
-                }
-                log.Fatalf("Server: fatal error: %v", err)
+    	conn, err := listener.Accept()
+        if err != nil {
+        	if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
+               log.Printf("Server: Accept error: %v", err)
+               continue
             }
-            connection := NewTcpConnection(conn)
-            if saveReadData {
-                connection.EnableSaveReadData()
-            }
-            if handler == nil {
-                log.Fatalf("Server must provide a handler")
-            }
-            go func() {
-                //after exiting the loop, the connection is closed
-                defer func ()  {
-                    connection.Close()
-                    /*
-                    if r := recover(); r != nil {
-                        _, file, line, ok := runtime.Caller(0)
-                        if ok {
-                            log.Printf("caller is %q:%d\n", file, line)
-                        }
-                        log.Printf("Recovered in server handler %v\n", r)
-                    }*/
-                    connectionCounterWriter <- -1
-                }()
-                connectionCounterWriter <- 1
-                handler.SetConnectionCounterReader(connectionCounterReader)
-                for ; ; {
-                    err := handler.Handle(connection)
-                    if err == os.EOF {
-                        log.Printf("Server handler closed connection because remote peer closed connection: %q\n", connection.RemoteAddr())
-                        break
-                    } else if err != nil {
-                        log.Printf("Server handler closed connection due to error: %v\n", err)
-                        break
-                    }
-                }
-            }()
-			connId += 1
+            log.Fatalf("Server: fatal error: %v", err)
+        }
+		connection := NewTcpConnection(conn)
+	    if saveReadData {
+	        connection.EnableSaveReadData()
+	    }
+		connectionQueue <- connection
     }
     panic("not reached")
 }
 
-func ListenAndServe(addr string, handler ServerHandler, saveReadData bool, block bool) os.Error {
+func handleConnections(connectionQueue chan *TcpConnection, NewServerHandler func() ServerHandler) {
+	handler := NewServerHandler()
+	defer func ()  {
+		handler.Cleanup()
+        if r := recover(); r != nil {
+            log.Printf("Recovered in server handler %v\n", r)
+        }
+    }()
+	for {
+		connection := <-connectionQueue
+    	err := handler.Handle(connection)
+		if err == os.EOF {
+            log.Printf("Server handler is closing connection because remote peer has closed it: %q\n", connection.RemoteAddr())
+			connection.Close()
+        } else if err != nil {
+            log.Printf("Server handler is closing connection due to error: %v\n", err)
+			connection.Close()
+        } else {
+			//put it back into the queue
+			connectionQueue <- connection
+		}
+	}
+}
+
+func ListenAndServe(addr string, NewServerHandler func() ServerHandler, poolSize int, block bool, saveReadData bool) os.Error {
     listener, err := listen(addr)
     if err != nil {
         return err
     }
     if block {
-        serve(listener, handler, saveReadData)
+        serve(listener, NewServerHandler, poolSize, saveReadData)
     } else {
-        go serve(listener, handler, saveReadData)
+        go serve(listener, NewServerHandler, poolSize, saveReadData)
     }
-    
     return nil
 }
 
 type ServerHandler interface {
+	Cleanup()
     Handle(*TcpConnection) os.Error
-    SetConnectionCounterReader(connectionCounterReader chan int)
 }

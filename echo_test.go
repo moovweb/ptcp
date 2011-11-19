@@ -13,10 +13,13 @@ type EchoServerHandler struct {
 }
 
 
-func NewEchoServerHandler() *EchoServerHandler {
+func NewEchoServerHandler() ServerHandler {
     esh := &EchoServerHandler{}
-    esh.Buffer = make([]byte, requestBufferSize)
+	esh.Buffer = make([]byte, requestBufferSize)
     return esh
+}
+
+func (esh *EchoServerHandler) Cleanup() {
 }
 
 func (esh *EchoServerHandler) Handle (connection *TcpConnection) (err os.Error) {
@@ -34,11 +37,6 @@ func (esh *EchoServerHandler) Handle (connection *TcpConnection) (err os.Error) 
     _, err = connection.Write(request)
     return err
 }
-
-
-func  (ech *EchoServerHandler) SetConnectionCounterReader(connectionCounterReader chan int) {
-}
-
 
 type EchoClientHandler struct {
     Buffer []byte
@@ -73,8 +71,7 @@ func (ech *EchoClientHandler) Handle (connection *TcpConnection, request interfa
 func TestEcho(t *testing.T) {
     address := "localhost:9090"
     clientHandler := NewEchoClientHandler()
-    serverHandler := NewEchoServerHandler()
-    ListenAndServe(address, serverHandler, false, false)
+    ListenAndServe(address, NewEchoServerHandler, 2, false, false)
     message := "hello world"
     for i := 0; i < 10; i++ {
         connection, err := Connect(address)
@@ -95,9 +92,8 @@ func BenchmarkEcho(b *testing.B) {
     b.StopTimer()
     address := "localhost:9090"
     clientHandler := NewEchoClientHandler()
-    serverHandler := NewEchoServerHandler()
 
-    ListenAndServe(address, serverHandler, true, false)
+    ListenAndServe(address, NewEchoServerHandler, 2, false, false)
     message := "hello world"
     connection, err := Connect(address)
     if err != nil {
@@ -107,7 +103,10 @@ func BenchmarkEcho(b *testing.B) {
 
     b.StartTimer()
     for i := 0; i < b.N; i++ {
-        SendAndReceive(connection, clientHandler, true, ([]byte)(message))
+        response, err := SendAndReceive(connection, clientHandler, true, ([]byte)(message))
+		if string(response) != message || err != nil {
+            log.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response), message)
+        }
     }
 }
 
