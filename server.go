@@ -31,7 +31,7 @@ func listen(addr string) (listener net.Listener, err os.Error) {
  * then call connection.Handler to reply to them.
  */
 
-func serve(listener net.Listener, NewServerHandler func() ServerHandler, poolSize int, saveReadData bool) os.Error {
+func serve(listener net.Listener, shared interface {}, NewServerHandler func(interface {}) ServerHandler, poolSize int, saveReadData bool) os.Error {
 	defer listener.Close()
 	
 	//create a queue to share incoming connections
@@ -39,7 +39,7 @@ func serve(listener net.Listener, NewServerHandler func() ServerHandler, poolSiz
 	
 	//create a number of handler goroutines to process connections
 	for i := 0; i < poolSize; i ++ {
-		go handleConnections(connectionQueue, NewServerHandler)
+		go handleConnections(connectionQueue, shared, NewServerHandler)
 	}
 	
 	for {
@@ -60,8 +60,8 @@ func serve(listener net.Listener, NewServerHandler func() ServerHandler, poolSiz
 	panic("not reached")
 }
 
-func handleConnections(connectionQueue chan *TcpConnection, NewServerHandler func() ServerHandler) {
-	handler := NewServerHandler()
+func handleConnections(connectionQueue chan *TcpConnection, shared interface {}, NewServerHandler func(interface {}) ServerHandler) {
+	handler := NewServerHandler(shared)
 	defer func ()  {
 		handler.Cleanup()
 		if r := recover(); r != nil {
@@ -84,15 +84,15 @@ func handleConnections(connectionQueue chan *TcpConnection, NewServerHandler fun
 	}
 }
 
-func ListenAndServe(addr string, NewServerHandler func() ServerHandler, poolSize int, block bool, saveReadData bool) os.Error {
+func ListenAndServe(addr string, shared interface {}, NewServerHandler func(interface {}) ServerHandler, poolSize int, block bool, saveReadData bool) os.Error {
 	listener, err := listen(addr)
 	if err != nil {
 		return err
 	}
 	if block {
-		serve(listener, NewServerHandler, poolSize, saveReadData)
+		serve(listener, shared, NewServerHandler, poolSize, saveReadData)
 	} else {
-		go serve(listener, NewServerHandler, poolSize, saveReadData)
+		go serve(listener, shared, NewServerHandler, poolSize, saveReadData)
 	}
 	return nil
 }

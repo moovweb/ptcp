@@ -13,7 +13,7 @@ type EchoServerHandler struct {
 }
 
 
-func NewEchoServerHandler() ServerHandler {
+func NewEchoServerHandler(_ interface {}) ServerHandler {
 	esh := &EchoServerHandler{}
 	esh.Buffer = make([]byte, requestBufferSize)
 	return esh
@@ -71,7 +71,7 @@ func (ech *EchoClientHandler) Handle (connection *TcpConnection, request interfa
 func TestEcho(t *testing.T) {
 	address := "localhost:9090"
 	clientHandler := NewEchoClientHandler()
-	ListenAndServe(address, NewEchoServerHandler, 2, false, false)
+	ListenAndServe(address, nil, NewEchoServerHandler, 2, false, false)
 	message := "hello world"
 	for i := 0; i < 10; i++ {
 		connection, err := Connect(address)
@@ -93,7 +93,7 @@ func BenchmarkEcho(b *testing.B) {
 	address := "localhost:9090"
 	clientHandler := NewEchoClientHandler()
 
-	ListenAndServe(address, NewEchoServerHandler, 2, false, false)
+	ListenAndServe(address, nil, NewEchoServerHandler, 2, false, false)
 	message := "hello world"
 	connection, err := Connect(address)
 	if err != nil {
