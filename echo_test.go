@@ -9,12 +9,14 @@ import (
 const requestBufferSize = 1000
 
 type EchoServerHandler struct {
+	id uint32
 	Buffer []byte
 }
 
 
-func NewEchoServerHandler(_ interface {}) ServerHandler {
+func NewEchoServerHandler(_ interface {}, id uint32) ServerHandler {
 	esh := &EchoServerHandler{}
+	esh.id = id
 	esh.Buffer = make([]byte, requestBufferSize)
 	return esh
 }

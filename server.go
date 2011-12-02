@@ -31,15 +31,16 @@ func listen(addr string) (listener net.Listener, err os.Error) {
  * then call connection.Handler to reply to them.
  */
 
-func serve(listener net.Listener, shared interface {}, NewServerHandler func(interface {}) ServerHandler, poolSize int, saveReadData bool) os.Error {
+func serve(listener net.Listener, shared interface {}, NewServerHandler func(interface {}, uint32) ServerHandler, poolSize int, saveReadData bool) os.Error {
 	defer listener.Close()
-	
+	var id uint32 = 0
 	//create a queue to share incoming connections
 	connectionQueue := make(chan *TcpConnection)
 	
 	//create a number of handler goroutines to process connections
 	for i := 0; i < poolSize; i ++ {
-		go handleConnections(connectionQueue, shared, NewServerHandler)
+		go handleConnections(connectionQueue, shared, NewServerHandler, id)
+		id ++
 	}
 	
 	for {
@@ -60,8 +61,8 @@ func serve(listener net.Listener, shared interface {}, NewServerHandler func(int
 	panic("not reached")
 }
 
-func handleConnections(connectionQueue chan *TcpConnection, shared interface {}, NewServerHandler func(interface {}) ServerHandler) {
-	handler := NewServerHandler(shared)
+func handleConnections(connectionQueue chan *TcpConnection, shared interface {}, NewServerHandler func(interface {}, uint32) ServerHandler, id uint32) {
+	handler := NewServerHandler(shared, id)
 	defer func ()  {
 		handler.Cleanup()
 		if r := recover(); r != nil {
@@ -84,7 +85,7 @@ func handleConnections(connectionQueue chan *TcpConnection, shared interface {},
 	}
 }
 
-func ListenAndServe(addr string, shared interface {}, NewServerHandler func(interface {}) ServerHandler, poolSize int, block bool, saveReadData bool) os.Error {
+func ListenAndServe(addr string, shared interface {}, NewServerHandler func(interface {}, uint32) ServerHandler, poolSize int, block bool, saveReadData bool) os.Error {
 	listener, err := listen(addr)
 	if err != nil {
 		return err
