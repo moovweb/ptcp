@@ -4,28 +4,47 @@ import (
 	"testing"
 	"os"
 	"log"
+	"syslog"
 )
 
 const requestBufferSize = 1000
 
-type EchoServerHandler struct {
-	id uint32
+type EchoServerContext struct {
+	*BasicServerContext
+	message string
+}
+
+type EchoServerHandlerContext struct {
+	*BasicServerHandlerContext
 	Buffer []byte
 }
 
-
-func NewEchoServerHandler(_ interface {}, id uint32) ServerHandler {
-	esh := &EchoServerHandler{}
-	esh.id = id
-	esh.Buffer = make([]byte, requestBufferSize)
-	return esh
+func NewEchoServerContext(message string, blocking bool, numHandlers int) ServerContext {
+	esCtx := &EchoServerContext{message:message}
+	esCtx.BasicServerContext = NewBasicServerContext(syslog.LOG_DEBUG, numHandlers, blocking)
+	return esCtx
 }
 
-func (esh *EchoServerHandler) Cleanup() {
+func (esCtx *EchoServerContext) NewServerHandlerContext(id uint32) ServerHandlerContext {
+	bshCtx := &BasicServerHandlerContext{sCtx:esCtx, id:id}
+	eshCtx := &EchoServerHandlerContext{}
+	eshCtx.BasicServerHandlerContext = bshCtx
+	eshCtx.Buffer = make([]byte, requestBufferSize)
+	return eshCtx
 }
 
-func (esh *EchoServerHandler) Handle (connection *TcpConnection) (err os.Error) {
-	n, err := connection.Read(esh.Buffer)
+func (esCtx *EchoServerContext) SetShared(shared interface{}) {
+	if message, ok := shared.(string); ok {
+		esCtx.message = message
+	}
+}
+
+func (esCtx *EchoServerContext) GetShared() (shared interface{}) {
+	return esCtx.message
+}
+
+func (eshCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err os.Error) {
+	n, err := connection.Read(eshCtx.Buffer)
 	if err != nil {
 		if err == os.EOF {
 			err = nil
@@ -35,7 +54,12 @@ func (esh *EchoServerHandler) Handle (connection *TcpConnection) (err os.Error) 
 	if n <= 0 {
 		return os.NewError("should receive more than 0 bytes")
 	}
-	request := esh.Buffer[0:n]
+	request := eshCtx.Buffer[0:n]
+	message := eshCtx.sCtx.GetShared().(string)
+	if (message != string(request)) {
+		logger := eshCtx.GetLogger()
+		logger.Crit("Wrong Message\n")
+	}
 	_, err = connection.Write(request)
 	return err
 }
@@ -72,17 +96,19 @@ func (ech *EchoClientHandler) Handle (connection *TcpConnection, request interfa
 
 func TestEcho(t *testing.T) {
 	address := "localhost:9090"
-	clientHandler := NewEchoClientHandler()
-	ListenAndServe(address, nil, NewEchoServerHandler, 2, false, false)
 	message := "hello world"
+	clientHandler := NewEchoClientHandler()
+	sCtx := NewEchoServerContext(message, false, 2)
+	ListenAndServe(address, sCtx)
 	for i := 0; i < 10; i++ {
 		connection, err := Connect(address)
+		connection.EnableSaveReadData()
 		if err != nil {
 			t.Error("error when connecting to %s: $v\n", address, err) 
 		}
 		go func() {
 			defer connection.Close()
-			response, err := SendAndReceive(connection, clientHandler, true, ([]byte)(message))
+			response, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
 			if string(response) != message || err != nil {
 				t.Errorf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response), message)
 			}
@@ -93,19 +119,20 @@ func TestEcho(t *testing.T) {
 func BenchmarkEcho(b *testing.B) {
 	b.StopTimer()
 	address := "localhost:9090"
-	clientHandler := NewEchoClientHandler()
-
-	ListenAndServe(address, nil, NewEchoServerHandler, 2, false, false)
 	message := "hello world"
+	clientHandler := NewEchoClientHandler()
+	sCtx := NewEchoServerContext(message, false, 2)
+	ListenAndServe(address, sCtx)
+
 	connection, err := Connect(address)
 	if err != nil {
 		return
 	}
-	defer connection.Close()
 
+	defer connection.Close()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		response, err := SendAndReceive(connection, clientHandler, true, ([]byte)(message))
+		response, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
 		if string(response) != message || err != nil {
 			log.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response), message)
 		}
