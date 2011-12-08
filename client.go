@@ -50,10 +50,7 @@ func ConnectTLS(addr string, hostName string) (connection *TcpConnection, err os
 }
 
 
-func SendAndReceive(connection *TcpConnection, handler ClientHandler, saveReadData bool, request interface{}) ([]byte, os.Error) {
-	if saveReadData {
-		connection.EnableSaveReadData()
-	}
+func SendAndReceive(connection *TcpConnection, handler ClientHandler, request interface{}) ([]byte, os.Error) {
 	if handler == nil {
 		log.Fatal("client must provide a handler")
 	}
