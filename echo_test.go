@@ -26,10 +26,13 @@ func NewEchoServerContext(message string, blocking bool, numHandlers int) Server
 }
 
 func (esCtx *EchoServerContext) NewServerHandlerContext(id uint32) ServerHandlerContext {
-	bshCtx := &BasicServerHandlerContext{sCtx:esCtx, id:id}
+	bsCtx := esCtx.BasicServerContext
+	shCtx := bsCtx.NewServerHandlerContext(id)
 	eshCtx := &EchoServerHandlerContext{}
-	eshCtx.BasicServerHandlerContext = bshCtx
+	eshCtx.BasicServerHandlerContext = shCtx.(*BasicServerHandlerContext)
 	eshCtx.Buffer = make([]byte, requestBufferSize)
+	//import!!! we need to set the server context to the caller object; otherwise it is pointed to eshCtx.BasicServerContext
+	eshCtx.sCtx = esCtx
 	return eshCtx
 }
 
@@ -46,9 +49,6 @@ func (esCtx *EchoServerContext) GetShared() (shared interface{}) {
 func (eshCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err os.Error) {
 	n, err := connection.Read(eshCtx.Buffer)
 	if err != nil {
-		if err == os.EOF {
-			err = nil
-		}
 		return
 	}
 	if n <= 0 {
@@ -57,8 +57,7 @@ func (eshCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err 
 	request := eshCtx.Buffer[0:n]
 	message := eshCtx.sCtx.GetShared().(string)
 	if (message != string(request)) {
-		logger := eshCtx.GetLogger()
-		logger.Crit("Wrong Message\n")
+		eshCtx.logger.Crit("Wrong Message\n")
 	}
 	_, err = connection.Write(request)
 	return err
@@ -98,7 +97,7 @@ func TestEcho(t *testing.T) {
 	address := "localhost:9090"
 	message := "hello world"
 	clientHandler := NewEchoClientHandler()
-	sCtx := NewEchoServerContext(message, false, 2)
+	sCtx := NewEchoServerContext(message, false, 10)
 	ListenAndServe(address, sCtx)
 	for i := 0; i < 10; i++ {
 		connection, err := Connect(address)
@@ -121,7 +120,7 @@ func BenchmarkEcho(b *testing.B) {
 	address := "localhost:9090"
 	message := "hello world"
 	clientHandler := NewEchoClientHandler()
-	sCtx := NewEchoServerContext(message, false, 2)
+	sCtx := NewEchoServerContext(message, false, 1)
 	ListenAndServe(address, sCtx)
 
 	connection, err := Connect(address)
