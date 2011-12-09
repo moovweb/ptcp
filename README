@@ -1,1 +1,5 @@
 The framework for client and server
+
+Go seems to support different usage of struct embedding between using it in the same library or outside it.
+
+echo_test.go uses it in the same library, and echo_externl_test.go in test folder uses it outside of the ptcp library.

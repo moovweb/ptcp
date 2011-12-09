@@ -21,7 +21,7 @@ type EchoServerHandlerContext struct {
 
 func NewEchoServerContext(message string, blocking bool, numHandlers int) ServerContext {
 	esCtx := &EchoServerContext{message:message}
-	esCtx.BasicServerContext = NewBasicServerContext(syslog.LOG_DEBUG, numHandlers, blocking)
+	esCtx.BasicServerContext = NewBasicServerContext((int)(syslog.LOG_DEBUG), numHandlers, blocking)
 	return esCtx
 }
 
@@ -34,12 +34,6 @@ func (esCtx *EchoServerContext) NewServerHandlerContext(id uint32) ServerHandler
 	//import!!! we need to set the server context to the caller object; otherwise it is pointed to eshCtx.BasicServerContext
 	eshCtx.sCtx = esCtx
 	return eshCtx
-}
-
-func (esCtx *EchoServerContext) SetShared(shared interface{}) {
-	if message, ok := shared.(string); ok {
-		esCtx.message = message
-	}
 }
 
 func (esCtx *EchoServerContext) GetShared() (shared interface{}) {
