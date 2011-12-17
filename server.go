@@ -31,6 +31,7 @@ type ServerContext interface {
 type ServerHandlerContext interface {
 	SetServerContext(ServerContext)
 	GetLogger() *syslog.Writer
+	GetId() uint32
 	Handle(*TcpConnection) os.Error
 	Cleanup()
 }
@@ -40,6 +41,7 @@ type BasicServerContext struct {
 	blocking bool
 	logger *syslog.Writer
 	logLevel int
+	loggerPrefix string
 }
 
 type BasicServerHandlerContext struct {
@@ -48,12 +50,12 @@ type BasicServerHandlerContext struct {
 	logger *syslog.Writer
 }
 
-func NewBasicServerContext(logLevel int, poolSize int, blocking bool) (bsCtx *BasicServerContext) {
-	logger, err := syslog.New((syslog.Priority)(logLevel), "Server")
+func NewBasicServerContext(logLevel int, poolSize int, blocking bool, loggerPrefix string) (bsCtx *BasicServerContext) {
+	logger, err := syslog.New((syslog.Priority)(logLevel), loggerPrefix)
 	if err != nil {
 		panic("cannot write to syslog in basic server")
 	}
-	bsCtx = &BasicServerContext{poolSize:poolSize, blocking:blocking, logger:logger, logLevel:logLevel}
+	bsCtx = &BasicServerContext{poolSize:poolSize, blocking:blocking, logger:logger, logLevel:logLevel, loggerPrefix: loggerPrefix}
 	return
 }
 
@@ -78,7 +80,7 @@ func (bsCtx *BasicServerContext) GetShared() (shared interface{}) {
 
 func (bsCtx *BasicServerContext) NewServerHandlerContext(id uint32) (shCtx ServerHandlerContext) {
 	idStr := strconv.Itoa(int(id))
-	logger, err := syslog.New((syslog.Priority)(bsCtx.logLevel), "Server Handler " + idStr)
+	logger, err := syslog.New((syslog.Priority)(bsCtx.logLevel), bsCtx.loggerPrefix + "("+ idStr + ")")
 	if err != nil {
 		panic("cannot write to syslog in basic server handler: " + idStr)
 	}
@@ -88,6 +90,11 @@ func (bsCtx *BasicServerContext) NewServerHandlerContext(id uint32) (shCtx Serve
 
 func (bshCtx *BasicServerHandlerContext) GetLogger() (logger *syslog.Writer) {
 	logger = bshCtx.logger
+	return 
+}
+
+func (bshCtx *BasicServerHandlerContext) GetId() (Id uint32) {
+	Id = bshCtx.id
 	return 
 }
 
@@ -111,9 +118,9 @@ func handleConnections(connectionQueue chan *TcpConnection, shCtx ServerHandlerC
 	logger := shCtx.GetLogger()
 	defer func ()  {
 		shCtx.Cleanup()
-		if r := recover(); r != nil {
+		/*if r := recover(); r != nil {
 			logger.Crit(fmt.Sprintf("Recovered in server handler %v\n", r))
-		}
+		}*/
 	}()
 
 	for {

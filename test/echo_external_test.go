@@ -22,7 +22,7 @@ type EchoServerHandlerContext struct {
 
 func NewEchoServerContext(message string, blocking bool, numHandlers int) ptcp.ServerContext {
 	esCtx := &EchoServerContext{message:message}
-	esCtx.BasicServerContext = ptcp.NewBasicServerContext((int)(syslog.LOG_DEBUG), numHandlers, blocking)
+	esCtx.BasicServerContext = ptcp.NewBasicServerContext((int)(syslog.LOG_DEBUG), numHandlers, blocking, "EchoServer")
 	return esCtx
 }
 

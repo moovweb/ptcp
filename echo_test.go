@@ -21,7 +21,7 @@ type EchoServerHandlerContext struct {
 
 func NewEchoServerContext(message string, blocking bool, numHandlers int) ServerContext {
 	esCtx := &EchoServerContext{message:message}
-	esCtx.BasicServerContext = NewBasicServerContext((int)(syslog.LOG_DEBUG), numHandlers, blocking)
+	esCtx.BasicServerContext = NewBasicServerContext((int)(syslog.LOG_DEBUG), numHandlers, blocking, "EchoServer")
 	return esCtx
 }
 
