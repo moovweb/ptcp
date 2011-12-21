@@ -32,7 +32,7 @@ func (esCtx *EchoServerContext) NewServerHandlerContext(id uint32) ServerHandler
 	eshCtx.BasicServerHandlerContext = shCtx.(*BasicServerHandlerContext)
 	eshCtx.Buffer = make([]byte, requestBufferSize)
 	//import!!! we need to set the server context to the caller object; otherwise it is pointed to eshCtx.BasicServerContext
-	eshCtx.sCtx = esCtx
+	eshCtx.ServerCtx = esCtx
 	return eshCtx
 }
 
@@ -49,9 +49,9 @@ func (eshCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err 
 		return os.NewError("should receive more than 0 bytes")
 	}
 	request := eshCtx.Buffer[0:n]
-	message := eshCtx.sCtx.GetShared().(string)
+	message := eshCtx.ServerCtx.(*EchoServerContext).message
 	if (message != string(request)) {
-		eshCtx.logger.Crit("Wrong Message\n")
+		eshCtx.Logger.Crit("Wrong Message\n")
 	}
 	_, err = connection.Write(request)
 	return err

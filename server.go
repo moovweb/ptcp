@@ -21,15 +21,13 @@ import (
 )
 
 type ServerContext interface {
-	GetHandlerPoolSize() int
-	GetShared() interface{}
 	IsBlocking() bool
 	GetLogger() *syslog.Writer
+	GetPoolSize() int
 	NewServerHandlerContext(uint32) ServerHandlerContext
 }
 
 type ServerHandlerContext interface {
-	SetServerContext(ServerContext)
 	GetLogger() *syslog.Writer
 	GetId() uint32
 	Handle(*TcpConnection) os.Error
@@ -37,17 +35,17 @@ type ServerHandlerContext interface {
 }
 
 type BasicServerContext struct {
-	poolSize int
-	blocking bool
-	logger *syslog.Writer
-	logLevel int
-	loggerPrefix string
+	PoolSize int
+	Blocking bool
+	Logger *syslog.Writer
+	LogLevel int
+	LoggerPrefix string
 }
 
 type BasicServerHandlerContext struct {
-	sCtx ServerContext
-	id uint32
-	logger *syslog.Writer
+	ServerCtx ServerContext
+	Id uint32
+	Logger *syslog.Writer
 }
 
 func NewBasicServerContext(logLevel int, poolSize int, blocking bool, loggerPrefix string) (bsCtx *BasicServerContext) {
@@ -55,56 +53,30 @@ func NewBasicServerContext(logLevel int, poolSize int, blocking bool, loggerPref
 	if err != nil {
 		panic("cannot write to syslog in basic server")
 	}
-	bsCtx = &BasicServerContext{poolSize:poolSize, blocking:blocking, logger:logger, logLevel:logLevel, loggerPrefix: loggerPrefix}
+	bsCtx = &BasicServerContext{PoolSize:poolSize, Blocking:blocking, Logger:logger, LogLevel:logLevel, LoggerPrefix: loggerPrefix}
 	return
-}
-
-func (bsCtx *BasicServerContext) GetLogger() (logger *syslog.Writer) {
-	logger = bsCtx.logger
-	return 
-}
-
-func (bsCtx *BasicServerContext) GetHandlerPoolSize() (size int) {
-	size = bsCtx.poolSize
-	return
-}
-
-func (bsCtx *BasicServerContext) IsBlocking() (blocking bool) {
-	blocking = bsCtx.blocking
-	return
-}
-
-func (bsCtx *BasicServerContext) GetShared() (shared interface{}) {
-	return 
 }
 
 func (bsCtx *BasicServerContext) NewServerHandlerContext(id uint32) (shCtx ServerHandlerContext) {
 	idStr := strconv.Itoa(int(id))
-	logger, err := syslog.New((syslog.Priority)(bsCtx.logLevel), bsCtx.loggerPrefix + "("+ idStr + ")")
+	logger, err := syslog.New((syslog.Priority)(bsCtx.LogLevel), bsCtx.LoggerPrefix + "("+ idStr + ")")
 	if err != nil {
 		panic("cannot write to syslog in basic server handler: " + idStr)
 	}
-	shCtx = &BasicServerHandlerContext{sCtx:bsCtx, id:id, logger:logger}
+	shCtx = &BasicServerHandlerContext{ServerCtx:bsCtx, Id:id, Logger:logger}
 	return shCtx
 }
 
-func (bshCtx *BasicServerHandlerContext) GetLogger() (logger *syslog.Writer) {
-	logger = bshCtx.logger
-	return 
+func (bsCtx *BasicServerContext) IsBlocking() bool {
+	return bsCtx.Blocking
 }
 
-func (bshCtx *BasicServerHandlerContext) GetId() (Id uint32) {
-	Id = bshCtx.id
-	return 
+func (bsCtx *BasicServerContext) GetLogger() *syslog.Writer {
+	return bsCtx.Logger
 }
 
-func (bshCtx *BasicServerHandlerContext) SetServerContext(sCtx ServerContext) {
-	bshCtx.sCtx = sCtx
-}
-
-func (bshCtx *BasicServerHandlerContext) GetServerContext() (sCtx ServerContext) {
-	sCtx = bshCtx.sCtx
-	return 
+func (bsCtx *BasicServerContext) GetPoolSize() int {
+	return bsCtx.PoolSize
 }
 
 func (bshCtx *BasicServerHandlerContext) Handle(*TcpConnection) os.Error {
@@ -112,6 +84,14 @@ func (bshCtx *BasicServerHandlerContext) Handle(*TcpConnection) os.Error {
 }
 
 func (bshCtx *BasicServerHandlerContext) Cleanup() {
+}
+
+func (bshCtx *BasicServerHandlerContext) GetLogger() *syslog.Writer {
+	return bshCtx.Logger
+}
+
+func (bshCtx *BasicServerHandlerContext) GetId() uint32 {
+	return bshCtx.Id
 }
 
 func handleConnections(connectionQueue chan *TcpConnection, shCtx ServerHandlerContext) {
@@ -152,7 +132,7 @@ func serve(listener net.Listener, sCtx ServerContext) os.Error {
 	//logger for the accept loop
 	logger := sCtx.GetLogger()
 	//get the handler pool size
-	poolSize := sCtx.GetHandlerPoolSize()
+	poolSize := sCtx.GetPoolSize()
 	
 	//create a queue to share incoming connections
 	//allow the queue to buffer up to poolSize connections

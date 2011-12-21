@@ -33,7 +33,7 @@ func (esCtx *EchoServerContext) NewServerHandlerContext(id uint32) ptcp.ServerHa
 	eshCtx.BasicServerHandlerContext = shCtx.(*ptcp.BasicServerHandlerContext)
 	eshCtx.Buffer = make([]byte, requestBufferSize)
 	//import!!! we need to set the server context to the caller object; otherwise it is pointed to eshCtx.BasicServerContext
-	eshCtx.SetServerContext(esCtx)
+	eshCtx.ServerCtx = esCtx
 	return eshCtx
 }
 
@@ -50,9 +50,9 @@ func (eshCtx *EchoServerHandlerContext) Handle (connection *ptcp.TcpConnection) 
 		return os.NewError("should receive more than 0 bytes")
 	}
 	request := eshCtx.Buffer[0:n]
-	message := eshCtx.GetServerContext().GetShared().(string)
+	message := eshCtx.ServerCtx.(*EchoServerContext).message
 	if (message != string(request)) {
-		eshCtx.GetLogger().Crit("Wrong Message\n")
+		eshCtx.Logger.Crit("Wrong Message\n")
 	}
 	_, err = connection.Write(request)
 	return err
