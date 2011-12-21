@@ -36,10 +36,6 @@ func (esCtx *EchoServerContext) NewServerHandlerContext(id uint32) ServerHandler
 	return eshCtx
 }
 
-func (esCtx *EchoServerContext) GetShared() (shared interface{}) {
-	return esCtx.message
-}
-
 func (eshCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err os.Error) {
 	n, err := connection.Read(eshCtx.Buffer)
 	if err != nil {
