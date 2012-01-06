@@ -63,24 +63,24 @@ func NewEchoClientHandler() *EchoClientHandler {
 	return ech
 }
 
-func (ech *EchoClientHandler) Handle (connection *TcpConnection, request interface {}) (response []byte, err os.Error) {
+func (ech *EchoClientHandler) Handle (connection *TcpConnection, request interface {}) (rawResponse []byte, response interface{}, err os.Error) {
 	requestBytes, ok := request.([]byte)
 	if ! ok {
-		return nil, os.NewError("EchoClientHandler cannot convert request into bytes")
+		return nil, nil, os.NewError("EchoClientHandler cannot convert request into bytes")
 	}
 	_, err = connection.Write(requestBytes)
 	if err != nil {
 		log.Printf("err : %v\n", err)
-		return nil, err
+		return nil, nil, err
 	}
 	n, err := connection.Read(ech.Buffer)
 	if err == os.EOF {
 		err = nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return ech.Buffer[:n], nil
+	return ech.Buffer[:n], ech.Buffer[:n], nil
 }
 
 func TestEcho(t *testing.T) {
@@ -97,9 +97,9 @@ func TestEcho(t *testing.T) {
 		}
 		go func() {
 			defer connection.Close()
-			response, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
-			if string(response) != message || err != nil {
-				t.Errorf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response), message)
+			rawResponse, _, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
+			if string(rawResponse) != message || err != nil {
+				t.Errorf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(rawResponse), message)
 			}
 		}()
 	}
@@ -121,9 +121,9 @@ func BenchmarkEcho(b *testing.B) {
 	defer connection.Close()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		response, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
-		if string(response) != message || err != nil {
-			log.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response), message)
+		rawResponse, _, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
+		if string(rawResponse) != message || err != nil {
+			log.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(rawResponse), message)
 		}
 	}
 }

@@ -50,7 +50,7 @@ func ConnectTLS(addr string, hostName string) (connection *TcpConnection, err os
 }
 
 
-func SendAndReceive(connection *TcpConnection, handler ClientHandler, request interface{}) ([]byte, os.Error) {
+func SendAndReceive(connection *TcpConnection, handler ClientHandler, request interface{}) ([]byte, interface{}, os.Error) {
 	if handler == nil {
 		log.Fatal("client must provide a handler")
 	}
@@ -58,6 +58,6 @@ func SendAndReceive(connection *TcpConnection, handler ClientHandler, request in
 }
 
 type ClientHandler interface {
-	Handle(*TcpConnection, interface{}) ([]byte, os.Error)
+	Handle(*TcpConnection, interface{}) ([]byte, interface{}, os.Error)
 }
 
