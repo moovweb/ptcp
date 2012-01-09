@@ -18,6 +18,9 @@ import (
 	"strconv"
 	"net"
 	"os"
+	"crypto/rand"
+	"crypto/tls"
+	"time"
 )
 
 type ServerContext interface {
@@ -160,15 +163,19 @@ func serve(listener net.Listener, sCtx ServerContext) os.Error {
 	panic("not reached")
 }
 
-func listen(addr string) (listener net.Listener, err os.Error) {
+func listen(addr string, ssl bool) (listener net.Listener, err os.Error) {
 	if addr == "" {
-		addr = ":http"
+		if ssl {
+			addr = ":https"
+		} else {
+			addr = ":http"
+		}	
 	}
 	return net.Listen("tcp", addr)
 }
 
 func ListenAndServe(addr string, sCtx ServerContext) os.Error {
-	listener, err := listen(addr)
+	listener, err := listen(addr, false)
 	if err != nil {
 		return err
 	}
@@ -176,6 +183,37 @@ func ListenAndServe(addr string, sCtx ServerContext) os.Error {
 		serve(listener, sCtx)
 	} else {
 		go serve(listener, sCtx)
+	}
+	return nil
+}
+
+func ListenAndServeTLS(addr string, sCtx ServerContext, certFile string, keyFile string) os.Error {
+	config := &tls.Config{
+		Rand:       rand.Reader,
+		Time:       time.Seconds,
+		NextProtos: []string{"http/1.1"},
+	}
+
+	var err os.Error
+	config.Certificates = make([]tls.Certificate, 1)
+	config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return err
+	}
+
+	conn, err := listen(addr, true)
+	if err != nil {
+		return err
+	}
+	tlsListener := tls.NewListener(conn, config)
+	if err != nil {
+		return err
+	}
+	
+	if sCtx.IsBlocking() {
+		serve(tlsListener, sCtx)
+	} else {
+		go serve(tlsListener, sCtx)
 	}
 	return nil
 }
