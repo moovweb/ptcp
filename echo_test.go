@@ -21,7 +21,7 @@ type EchoServerHandlerContext struct {
 
 func NewEchoServerContext(message string, blocking bool, numHandlers int) ServerContext {
 	esCtx := &EchoServerContext{message:message}
-	logConfig := &LogConfig{ConsoleLogLevel: int(log4go.DEBUG), SysLogLevel: int(log4go.DEBUG)}
+	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.DEBUG), SysLogLevel: int(log4go.DEBUG)}
 	esCtx.BasicServerContext = NewBasicServerContext(logConfig, numHandlers, blocking)
 	return esCtx
 }
