@@ -3,8 +3,8 @@ package ptcp
 import (
 	"testing"
 	"os"
-	"log"
-	"syslog"
+	"log4go"
+	"fmt"
 )
 
 const requestBufferSize = 1000
@@ -21,7 +21,8 @@ type EchoServerHandlerContext struct {
 
 func NewEchoServerContext(message string, blocking bool, numHandlers int) ServerContext {
 	esCtx := &EchoServerContext{message:message}
-	esCtx.BasicServerContext = NewBasicServerContext((int)(syslog.LOG_DEBUG), numHandlers, blocking, "EchoServer")
+	logConfig := &LogConfig{ConsoleLogLevel: int(log4go.DEBUG), SysLogLevel: int(log4go.DEBUG)}
+	esCtx.BasicServerContext = NewBasicServerContext(logConfig, numHandlers, blocking)
 	return esCtx
 }
 
@@ -47,7 +48,7 @@ func (eshCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err 
 	request := eshCtx.Buffer[0:n]
 	message := eshCtx.ServerCtx.(*EchoServerContext).message
 	if (message != string(request)) {
-		eshCtx.Logger.Crit("Wrong Message\n")
+		eshCtx.Logger.Error("Wrong Message")
 	}
 	_, err = connection.Write(request)
 	return err
@@ -70,7 +71,7 @@ func (ech *EchoClientHandler) Handle (connection *TcpConnection, request interfa
 	}
 	_, err = connection.Write(requestBytes)
 	if err != nil {
-		log.Printf("err : %v\n", err)
+		fmt.Fprintf(os.Stderr, "err : %v\n", err)
 		return nil, nil, err
 	}
 	n, err := connection.Read(ech.Buffer)
@@ -123,7 +124,7 @@ func BenchmarkEcho(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		rawResponse, _, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
 		if string(rawResponse) != message || err != nil {
-			log.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(rawResponse), message)
+			fmt.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(rawResponse), message)
 		}
 	}
 }

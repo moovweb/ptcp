@@ -16,7 +16,6 @@ import (
 	"net"
 	"os"
 	"crypto/tls"
-	"log"
 )
 
 func Connect(addr string) (connection *TcpConnection, err os.Error) {
@@ -52,7 +51,7 @@ func ConnectTLS(addr string, hostName string) (connection *TcpConnection, err os
 
 func SendAndReceive(connection *TcpConnection, handler ClientHandler, request interface{}) ([]byte, interface{}, os.Error) {
 	if handler == nil {
-		log.Fatal("client must provide a handler")
+		return nil, nil, os.NewError("client must provide a handler")
 	}
 	return handler.Handle(connection, request)
 }

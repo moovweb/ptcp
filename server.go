@@ -13,25 +13,24 @@
 package ptcp
 
 import (
-	"syslog"
-	"fmt"
-	"strconv"
+	//"strconv"
 	"net"
 	"os"
 	"crypto/rand"
 	"crypto/tls"
 	"time"
+	"log4go"
 )
 
 type ServerContext interface {
 	IsBlocking() bool
-	GetLogger() *syslog.Writer
+	GetLogger() log4go.Logger
 	GetPoolSize() int
 	NewServerHandlerContext(uint32) ServerHandlerContext
 }
 
 type ServerHandlerContext interface {
-	GetLogger() *syslog.Writer
+	GetLogger() log4go.Logger
 	GetId() uint32
 	Handle(*TcpConnection) os.Error
 	Cleanup()
@@ -40,32 +39,26 @@ type ServerHandlerContext interface {
 type BasicServerContext struct {
 	PoolSize int
 	Blocking bool
-	Logger *syslog.Writer
-	LogLevel int
-	LoggerPrefix string
+	Logger log4go.Logger
+	LogConf *LogConfig
 }
 
 type BasicServerHandlerContext struct {
 	ServerCtx ServerContext
 	Id uint32
-	Logger *syslog.Writer
+	Logger log4go.Logger
 }
 
-func NewBasicServerContext(logLevel int, poolSize int, blocking bool, loggerPrefix string) (bsCtx *BasicServerContext) {
-	logger, err := syslog.New((syslog.Priority)(logLevel), loggerPrefix)
-	if err != nil {
-		panic("cannot write to syslog in basic server")
-	}
-	bsCtx = &BasicServerContext{PoolSize:poolSize, Blocking:blocking, Logger:logger, LogLevel:logLevel, LoggerPrefix: loggerPrefix}
+func NewBasicServerContext(logConfig *LogConfig, poolSize int, blocking bool) (bsCtx *BasicServerContext) {
+	logger := NewLogger(logConfig)
+	bsCtx = &BasicServerContext{PoolSize:poolSize, Blocking:blocking, Logger:logger, LogConf:logConfig}
 	return
 }
 
 func (bsCtx *BasicServerContext) NewServerHandlerContext(id uint32) (shCtx ServerHandlerContext) {
-	idStr := strconv.Itoa(int(id))
-	logger, err := syslog.New((syslog.Priority)(bsCtx.LogLevel), bsCtx.LoggerPrefix + "("+ idStr + ")")
-	if err != nil {
-		panic("cannot write to syslog in basic server handler: " + idStr)
-	}
+	//idStr := strconv.Itoa(int(id))
+	logger := NewLogger(bsCtx.LogConf)
+	//logger.SetPrefix(logger.Prefix()+"("+ idStr + ")")
 	shCtx = &BasicServerHandlerContext{ServerCtx:bsCtx, Id:id, Logger:logger}
 	return shCtx
 }
@@ -74,7 +67,7 @@ func (bsCtx *BasicServerContext) IsBlocking() bool {
 	return bsCtx.Blocking
 }
 
-func (bsCtx *BasicServerContext) GetLogger() *syslog.Writer {
+func (bsCtx *BasicServerContext) GetLogger() log4go.Logger {
 	return bsCtx.Logger
 }
 
@@ -89,7 +82,7 @@ func (bshCtx *BasicServerHandlerContext) Handle(*TcpConnection) os.Error {
 func (bshCtx *BasicServerHandlerContext) Cleanup() {
 }
 
-func (bshCtx *BasicServerHandlerContext) GetLogger() *syslog.Writer {
+func (bshCtx *BasicServerHandlerContext) GetLogger() log4go.Logger {
 	return bshCtx.Logger
 }
 
@@ -110,10 +103,10 @@ func handleConnections(connectionQueue chan *TcpConnection, shCtx ServerHandlerC
 		connection := <-connectionQueue
 		err := shCtx.Handle(connection)
 		if err == os.EOF {
-			logger.Info(fmt.Sprintf("Server handler is closing connection because remote peer has closed it: %q\n", connection.RemoteAddr()))
+			logger.Info("Server handler is closing connection because remote peer has closed it: %q", connection.RemoteAddr())
 			connection.Close()
 		} else if err != nil {
-			logger.Warning(fmt.Sprintf("Server handler is closing connection due to error: %v\n", err))
+			logger.Warn("Server handler is closing connection due to error: %v", err)
 			connection.Close()
 		} else {
 			//put it back into the queue
@@ -152,10 +145,10 @@ func serve(listener net.Listener, sCtx ServerContext) os.Error {
 		conn, err := listener.Accept()
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
-			   logger.Crit(fmt.Sprintf("Server: Accept error: %v", err))
+			   logger.Error("Server: Accept error: %v", err)
 			   continue
 			}
-			logger.Crit(fmt.Sprintf("Server: fatal error: %v", err))
+			logger.Critical("Server: fatal error: %v", err)
 		}
 		connection := NewTcpConnection(conn)
 		connectionQueue <- connection
