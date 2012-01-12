@@ -9,6 +9,5 @@ GOFILES=\
     tcp.go\
 	server.go\
     client.go\
-	log.go\
 
 include $(GOROOT)/src/Make.pkg
