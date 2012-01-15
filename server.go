@@ -19,7 +19,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"time"
-	"log4go"
+	"github.com/moovweb/log4go"
 )
 
 type ServerContext interface {
