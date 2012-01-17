@@ -50,14 +50,14 @@ type BasicServerHandlerContext struct {
 }
 
 func NewBasicServerContext(logConfig *log4go.LogConfig, poolSize int, blocking bool) (bsCtx *BasicServerContext) {
-	logger := log4go.NewLoggerFromConfig(logConfig)
+	logger := log4go.NewLoggerFromConfig(logConfig, "proxy")
 	bsCtx = &BasicServerContext{PoolSize:poolSize, Blocking:blocking, Logger:logger, LogConf:logConfig}
 	return
 }
 
 func (bsCtx *BasicServerContext) NewServerHandlerContext(id uint32) (shCtx ServerHandlerContext) {
 	//idStr := strconv.Itoa(int(id))
-	logger := log4go.NewLoggerFromConfig(bsCtx.LogConf)
+	logger := log4go.NewLoggerFromConfig(bsCtx.LogConf, "proxy")
 	//logger.SetPrefix(logger.Prefix()+"("+ idStr + ")")
 	shCtx = &BasicServerHandlerContext{ServerCtx:bsCtx, Id:id, Logger:logger}
 	return shCtx
