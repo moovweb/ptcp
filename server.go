@@ -105,6 +105,8 @@ func handleConnections(connectionQueue chan *TcpConnection, shCtx ServerHandlerC
 		if err == os.EOF {
 			logger.Info("Server handler is closing connection because remote peer has closed it: %q", connection.RemoteAddr())
 			connection.Close()
+		} else if err == os.NewError("client required the connection be closed\n") {
+			//ok
 		} else if err != nil {
 			logger.Warn("Server handler is closing connection due to error: %v", err)
 			connection.Close()
