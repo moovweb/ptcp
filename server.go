@@ -13,7 +13,7 @@
 package ptcp
 
 import (
-	//"strconv"
+	"strconv"
 	"net"
 	"os"
 	"crypto/rand"
@@ -56,9 +56,8 @@ func NewBasicServerContext(logConfig *log4go.LogConfig, poolSize int, blocking b
 }
 
 func (bsCtx *BasicServerContext) NewServerHandlerContext(id uint32) (shCtx ServerHandlerContext) {
-	//idStr := strconv.Itoa(int(id))
-	logger := log4go.NewLoggerFromConfig(bsCtx.LogConf, "proxy")
-	//logger.SetPrefix(logger.Prefix()+"("+ idStr + ")")
+	idStr := strconv.Itoa(int(id))
+	logger := log4go.NewLoggerFromConfig(bsCtx.LogConf, "proxy"+"("+ idStr + ")")
 	shCtx = &BasicServerHandlerContext{ServerCtx:bsCtx, Id:id, Logger:logger}
 	return shCtx
 }
