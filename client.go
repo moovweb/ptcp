@@ -41,9 +41,9 @@ func ConnectTLS(addr string, hostName string) (connection *TcpConnection, err os
 	if err = tlsConn.Handshake(); err != nil {
 		return nil, err
 	}
-	if err = tlsConn.VerifyHostname(hostName); err != nil {
+	/*if err = tlsConn.VerifyHostname(hostName); err != nil {
 		return nil, err
-	}
+	}*/
 	connection = NewTcpConnection(tlsConn)
 	return connection, nil
 }
