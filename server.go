@@ -94,7 +94,7 @@ func handleConnections(connectionQueue chan *TcpConnection, shCtx ServerHandlerC
 	defer func ()  {
 		shCtx.Cleanup()
 		if r := recover(); r != nil {
-			logger.Crit(fmt.Sprintf("Recovered in server handler %v\n", r))
+			logger.Error("Recovered in server handler %v\n", r)
 		}
 	}()
 
