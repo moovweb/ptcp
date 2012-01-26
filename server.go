@@ -138,7 +138,7 @@ func serve(listener net.Listener, sCtx ServerContext) os.Error {
 	defer listener.Close()
 	
 	//create a logger with the proper prefix and config
-	logPrefix := fmt.Sprintf("Server (%v)", sCtx.GetServerTag())
+	logPrefix := fmt.Sprintf("%v", sCtx.GetServerTag())
 	logConfig := sCtx.GetLogConfig()
 	logger := log4go.NewLoggerFromConfig(logConfig, logPrefix)
 
