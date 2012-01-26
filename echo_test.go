@@ -22,7 +22,7 @@ type EchoServerHandlerContext struct {
 func NewEchoServerContext(message string, blocking bool, numHandlers int) ServerContext {
 	esCtx := &EchoServerContext{message:message}
 	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.DEBUG), SysLogLevel: int(log4go.DEBUG)}
-	esCtx.BasicServerContext = NewBasicServerContext(logConfig, numHandlers, blocking)
+	esCtx.BasicServerContext = NewBasicServerContext(logConfig, numHandlers, blocking, "EchoServer")
 	return esCtx
 }
 
@@ -47,8 +47,11 @@ func (eshCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err 
 	}
 	request := eshCtx.Buffer[0:n]
 	message := eshCtx.ServerCtx.(*EchoServerContext).message
+	logPrefix := fmt.Sprintf("%v (%d)", eshCtx.GetServerTag(), eshCtx.GetId())
+	logConfig := eshCtx.GetLogConfig()
+	logger := log4go.NewLoggerFromConfig(logConfig, logPrefix)
 	if (message != string(request)) {
-		eshCtx.Logger.Error("Wrong Message")
+		logger.Error("Wrong Message")
 	}
 	_, err = connection.Write(request)
 	return err
