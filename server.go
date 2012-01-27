@@ -27,11 +27,13 @@ type ServerContext interface {
 	GetLogConfig() *log4go.LogConfig
 	GetServerTag() string
 	IsBlocking() bool
+	SetServerHandlerContextConstructor(func(uint32, ServerContext) ServerHandlerContext)
+	GetServerHandlerContextConstructor() func(uint32, ServerContext) ServerHandlerContext
 	Cleanup()
-	NewServerHandlerContext(uint32) ServerHandlerContext
 }
 
 type ServerHandlerContext interface {
+	GetServerContext() ServerContext
 	GetId() uint32
 	GetLogConfig() *log4go.LogConfig
 	GetServerTag() string
@@ -39,72 +41,88 @@ type ServerHandlerContext interface {
 	Cleanup()
 }
 
-type BasicServerContext struct {
-	ServerTag string
-	PoolSize int
-	Blocking bool
-	LogConfig *log4go.LogConfig
+type DefaultServerContext struct {
+	serverTag string
+	poolSize int
+	blocking bool
+	logConfig *log4go.LogConfig
+	serverHandlerContextConstructor func(uint32, ServerContext) ServerHandlerContext
 }
 
-type BasicServerHandlerContext struct {
-	ServerCtx ServerContext
-	Id uint32
+type DefaultServerHandlerContext struct {
+	serverCtx ServerContext
+	id uint32
 }
 
-func NewBasicServerContext(logConfig *log4go.LogConfig, poolSize int, blocking bool, serverTag string) (bsCtx *BasicServerContext) {
-	bsCtx = &BasicServerContext{PoolSize:poolSize, Blocking:blocking, LogConfig:logConfig, ServerTag: serverTag}
+func NewDefaultServerContext(logConfig *log4go.LogConfig, poolSize int, blocking bool, serverTag string) (defaultServerCtx *DefaultServerContext) {
+	defaultServerCtx = &DefaultServerContext{poolSize:poolSize, blocking:blocking, logConfig:logConfig, serverTag: serverTag}
 	return
 }
 
-func (bsCtx *BasicServerContext) NewServerHandlerContext(id uint32) (shCtx ServerHandlerContext) {
-	shCtx = &BasicServerHandlerContext{ServerCtx:bsCtx, Id:id}
+func NewDefaultServerHandlerContext(id uint32, serverCtx ServerContext) (defaultServerHandlerCtx *DefaultServerHandlerContext) {
+	defaultServerHandlerCtx = &DefaultServerHandlerContext{serverCtx:serverCtx, id:id}
 	return
 }
 
-func (bsCtx *BasicServerContext) IsBlocking() bool {
-	return bsCtx.Blocking
+func (defaultServerCtx *DefaultServerContext) IsBlocking() bool {
+	return defaultServerCtx.blocking
 }
 
-func (bsCtx *BasicServerContext) GetPoolSize() int {
-	return bsCtx.PoolSize
+func (defaultServerCtx *DefaultServerContext) GetPoolSize() int {
+	return defaultServerCtx.poolSize
 }
 
-func (bsCtx *BasicServerContext) GetLogConfig() *log4go.LogConfig {
-	return bsCtx.LogConfig
+func (defaultServerCtx *DefaultServerContext) GetLogConfig() *log4go.LogConfig {
+	return defaultServerCtx.logConfig
 }
 
-func (bsCtx *BasicServerContext) GetServerTag() string {
-	return bsCtx.ServerTag
+func (defaultServerCtx *DefaultServerContext) GetServerTag() string {
+	return defaultServerCtx.serverTag
 }
 
-func (bsCtx *BasicServerContext) Cleanup() {
+func (defaultServerCtx *DefaultServerContext) SetServerHandlerContextConstructor(constructor func(uint32, ServerContext) ServerHandlerContext) {
+	defaultServerCtx.serverHandlerContextConstructor = constructor
 }
 
-func (bshCtx *BasicServerHandlerContext) Handle(*TcpConnection) os.Error {
+func (defaultServerCtx *DefaultServerContext) GetServerHandlerContextConstructor() (constructor func(uint32, ServerContext) ServerHandlerContext) {
+	constructor = defaultServerCtx.serverHandlerContextConstructor
+	return 
+}
+
+func (defaultServerCtx *DefaultServerContext) Cleanup() {
+}
+
+
+func (defaultServerHandlerCtx *DefaultServerHandlerContext) Handle(*TcpConnection) os.Error {
 	return nil
 }
 
-func (bshCtx *BasicServerHandlerContext) GetId() uint32 {
-	return bshCtx.Id
+func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetId() uint32 {
+	return defaultServerHandlerCtx.id
 }
 
-func (bshCtx *BasicServerHandlerContext) GetLogConfig() *log4go.LogConfig {
-	return bshCtx.ServerCtx.GetLogConfig()
+func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetLogConfig() *log4go.LogConfig {
+	return defaultServerHandlerCtx.GetServerContext().GetLogConfig()
 }
 
-func (bshCtx *BasicServerHandlerContext) GetServerTag() string {
-	return bshCtx.ServerCtx.GetServerTag()
+func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetServerTag() string {
+	return defaultServerHandlerCtx.GetServerContext().GetServerTag()
 }
 
-func (bshCtx *BasicServerHandlerContext) Cleanup() {
+func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetServerContext() (serverCtx ServerContext) {
+	serverCtx = defaultServerHandlerCtx.serverCtx
+	return
 }
 
-func handleConnections(connectionQueue chan *TcpConnection, shCtx ServerHandlerContext) {
-	logPrefix := fmt.Sprintf("%v (%d)", shCtx.GetServerTag(), shCtx.GetId())
-	logConfig := shCtx.GetLogConfig()
+func (bshCtx *DefaultServerHandlerContext) Cleanup() {
+}
+
+func handleConnections(connectionQueue chan *TcpConnection, serverHandlerCtx ServerHandlerContext) {
+	logPrefix := fmt.Sprintf("%v (%d)", serverHandlerCtx.GetServerTag(), serverHandlerCtx.GetId())
+	logConfig := serverHandlerCtx.GetLogConfig()
 	logger := log4go.NewLoggerFromConfig(logConfig, logPrefix)
 	defer func ()  {
-		shCtx.Cleanup()
+		serverHandlerCtx.Cleanup()
 		if r := recover(); r != nil {
 			logger.Error("Recovered in server handler %v\n", r)
 		}
@@ -112,7 +130,7 @@ func handleConnections(connectionQueue chan *TcpConnection, shCtx ServerHandlerC
 
 	for {
 		connection := <-connectionQueue
-		err := shCtx.Handle(connection)
+		err := serverHandlerCtx.Handle(connection)
 		if err == os.EOF {
 			logger.Info("Server handler is closing connection because remote peer has closed it: %q", connection.RemoteAddr())
 			connection.Close()
@@ -134,22 +152,23 @@ func handleConnections(connectionQueue chan *TcpConnection, shCtx ServerHandlerC
  * then call connection.Handler to reply to them.
  */
 
-func serve(listener net.Listener, sCtx ServerContext) os.Error {
+func serve(listener net.Listener, serverCtx ServerContext) os.Error {
 	defer listener.Close()
 	
+	serverTag := serverCtx.GetServerTag()
 	//create a logger with the proper prefix and config
-	logPrefix := fmt.Sprintf("%v", sCtx.GetServerTag())
-	logConfig := sCtx.GetLogConfig()
+	logPrefix := fmt.Sprintf("%v", serverTag)
+	logConfig := serverCtx.GetLogConfig()
 	logger := log4go.NewLoggerFromConfig(logConfig, logPrefix)
 
 	var id uint32 = 0
 	
 	//get the handler pool size
-	poolSize := sCtx.GetPoolSize()
+	poolSize := serverCtx.GetPoolSize()
 	
 	//need at least one handler
 	if poolSize <= 0 {
-		logger.Error("You need at least one handler for server: %q", sCtx.GetServerTag())
+		logger.Error("You need at least one handler for server: %q", serverTag)
 		panic("Need at least one handler for server")
 	}
 	
@@ -157,13 +176,15 @@ func serve(listener net.Listener, sCtx ServerContext) os.Error {
 	//allow the queue to buffer up to poolSize connections
 	connectionQueue := make(chan *TcpConnection, poolSize)
 	
+	//get the handler constructor
+	handlerConstructor := serverCtx.GetServerHandlerContextConstructor()
 	//create a number of handler goroutines to process connections
 	for i := 0; i < poolSize; i ++ {
-		shCtx := sCtx.NewServerHandlerContext(id)
-		go handleConnections(connectionQueue, shCtx)
+		serverHandlerCtx := handlerConstructor(id, serverCtx)
+		go handleConnections(connectionQueue, serverHandlerCtx)
 		id ++
 	}
-	logger.Info("Created %d handlers for server: %q", poolSize, sCtx.GetServerTag())
+	logger.Info("Created %d handlers for server: %q", poolSize, serverCtx.GetServerTag())
 	
 	for {
 		conn, err := listener.Accept()
@@ -191,15 +212,15 @@ func listen(addr string, ssl bool) (listener net.Listener, err os.Error) {
 	return net.Listen("tcp", addr)
 }
 
-func ListenAndServe(addr string, sCtx ServerContext) os.Error {
+func ListenAndServe(addr string, serverCtx ServerContext) os.Error {
 	listener, err := listen(addr, false)
 	if err != nil {
 		return err
 	}
-	if sCtx.IsBlocking() {
-		serve(listener, sCtx)
+	if serverCtx.IsBlocking() {
+		serve(listener, serverCtx)
 	} else {
-		go serve(listener, sCtx)
+		go serve(listener, serverCtx)
 	}
 	return nil
 }
