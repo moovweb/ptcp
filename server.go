@@ -27,7 +27,6 @@ type ServerContext interface {
 	GetLogConfig() *log4go.LogConfig
 	GetServerTag() string
 	IsBlocking() bool
-	SetServerHandlerContextConstructor(func(uint32, ServerContext) ServerHandlerContext)
 	GetServerHandlerContextConstructor() func(uint32, ServerContext) ServerHandlerContext
 	Cleanup()
 }
@@ -37,72 +36,80 @@ type ServerHandlerContext interface {
 	GetId() uint32
 	GetLogConfig() *log4go.LogConfig
 	GetServerTag() string
+	GetLogger() log4go.Logger
 	Handle(*TcpConnection) os.Error
 	Cleanup()
 }
 
 type DefaultServerContext struct {
-	serverTag string
-	poolSize int
-	blocking bool
-	logConfig *log4go.LogConfig
-	serverHandlerContextConstructor func(uint32, ServerContext) ServerHandlerContext
+	ServerTag string
+	PoolSize int
+	Blocking bool
+	LogConfig *log4go.LogConfig
+	ServerHandlerContextConstructor func(uint32, ServerContext) ServerHandlerContext
 }
 
 type DefaultServerHandlerContext struct {
-	serverCtx ServerContext
-	id uint32
+	ServerCtx ServerContext
+	Id uint32
+	Logger log4go.Logger
 }
 
 func NewDefaultServerContext(logConfig *log4go.LogConfig, poolSize int, blocking bool, serverTag string) (defaultServerCtx *DefaultServerContext) {
-	defaultServerCtx = &DefaultServerContext{poolSize:poolSize, blocking:blocking, logConfig:logConfig, serverTag: serverTag}
+	defaultServerCtx = &DefaultServerContext{PoolSize:poolSize, Blocking:blocking, LogConfig:logConfig, ServerTag: serverTag}
 	return
 }
 
 func NewDefaultServerHandlerContext(id uint32, serverCtx ServerContext) (defaultServerHandlerCtx *DefaultServerHandlerContext) {
-	defaultServerHandlerCtx = &DefaultServerHandlerContext{serverCtx:serverCtx, id:id}
+	defaultServerHandlerCtx = &DefaultServerHandlerContext{ServerCtx:serverCtx, Id:id}
 	return
 }
 
 func (defaultServerCtx *DefaultServerContext) IsBlocking() bool {
-	return defaultServerCtx.blocking
+	return defaultServerCtx.Blocking
 }
 
 func (defaultServerCtx *DefaultServerContext) GetPoolSize() int {
-	return defaultServerCtx.poolSize
+	return defaultServerCtx.PoolSize
 }
 
 func (defaultServerCtx *DefaultServerContext) GetLogConfig() *log4go.LogConfig {
-	return defaultServerCtx.logConfig
+	return defaultServerCtx.LogConfig
 }
 
 func (defaultServerCtx *DefaultServerContext) GetServerTag() string {
-	return defaultServerCtx.serverTag
-}
-
-func (defaultServerCtx *DefaultServerContext) SetServerHandlerContextConstructor(constructor func(uint32, ServerContext) ServerHandlerContext) {
-	defaultServerCtx.serverHandlerContextConstructor = constructor
+	return defaultServerCtx.ServerTag
 }
 
 func (defaultServerCtx *DefaultServerContext) GetServerHandlerContextConstructor() (constructor func(uint32, ServerContext) ServerHandlerContext) {
-	constructor = defaultServerCtx.serverHandlerContextConstructor
+	constructor = defaultServerCtx.ServerHandlerContextConstructor
 	return 
 }
 
 func (defaultServerCtx *DefaultServerContext) Cleanup() {
 }
 
+//--------------------------------------
 
 func (defaultServerHandlerCtx *DefaultServerHandlerContext) Handle(*TcpConnection) os.Error {
 	return nil
 }
 
 func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetId() uint32 {
-	return defaultServerHandlerCtx.id
+	return defaultServerHandlerCtx.Id
 }
 
 func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetLogConfig() *log4go.LogConfig {
 	return defaultServerHandlerCtx.GetServerContext().GetLogConfig()
+}
+
+func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetLogger() log4go.Logger {
+	if defaultServerHandlerCtx.Logger == nil {
+		logPrefix := fmt.Sprintf("%v (%d)", defaultServerHandlerCtx.GetServerTag(), defaultServerHandlerCtx.GetId())
+		logConfig := defaultServerHandlerCtx.GetLogConfig()
+		defaultServerHandlerCtx.Logger = log4go.NewLoggerFromConfig(logConfig, logPrefix)
+	}
+	return defaultServerHandlerCtx.Logger
 }
 
 func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetServerTag() string {
@@ -110,7 +117,7 @@ func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetServerTag() strin
 }
 
 func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetServerContext() (serverCtx ServerContext) {
-	serverCtx = defaultServerHandlerCtx.serverCtx
+	serverCtx = defaultServerHandlerCtx.ServerCtx
 	return
 }
 
@@ -118,9 +125,7 @@ func (bshCtx *DefaultServerHandlerContext) Cleanup() {
 }
 
 func handleConnections(connectionQueue chan *TcpConnection, serverHandlerCtx ServerHandlerContext) {
-	logPrefix := fmt.Sprintf("%v (%d)", serverHandlerCtx.GetServerTag(), serverHandlerCtx.GetId())
-	logConfig := serverHandlerCtx.GetLogConfig()
-	logger := log4go.NewLoggerFromConfig(logConfig, logPrefix)
+	logger := serverHandlerCtx.GetLogger()
 	defer func ()  {
 		serverHandlerCtx.Cleanup()
 		if r := recover(); r != nil {

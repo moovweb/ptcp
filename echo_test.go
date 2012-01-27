@@ -23,7 +23,7 @@ func NewEchoServerContext(message string, blocking bool, numHandlers int) Server
 	echoServerCtx := &EchoServerContext{message:message}
 	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.DEBUG), SysLogLevel: int(log4go.DEBUG)}
 	echoServerCtx.DefaultServerContext = NewDefaultServerContext(logConfig, numHandlers, blocking, "EchoServer")
-	echoServerCtx.SetServerHandlerContextConstructor(NewEchoServerHandlerContext)
+	echoServerCtx.ServerHandlerContextConstructor = NewEchoServerHandlerContext
 	return echoServerCtx
 }
 
@@ -32,6 +32,15 @@ func NewEchoServerHandlerContext(id uint32, serverCtx ServerContext) ServerHandl
 	echoServerHandlerCtx.Buffer = make([]byte, requestBufferSize)
 	echoServerHandlerCtx.DefaultServerHandlerContext = NewDefaultServerHandlerContext(id, serverCtx)
 	return echoServerHandlerCtx
+}
+
+func (echoServerHandlerCtx *EchoServerHandlerContext) GetLogger() log4go.Logger {
+	if echoServerHandlerCtx.Logger == nil {
+		logPrefix := fmt.Sprintf("%v (%d) Mikey", echoServerHandlerCtx.GetServerTag(), echoServerHandlerCtx.GetId())
+		logConfig := echoServerHandlerCtx.GetLogConfig()
+		echoServerHandlerCtx.Logger = log4go.NewLoggerFromConfig(logConfig, logPrefix)
+	}
+	return echoServerHandlerCtx.Logger
 }
 
 func (echoServerHandlerCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err os.Error) {
@@ -44,11 +53,11 @@ func (echoServerHandlerCtx *EchoServerHandlerContext) Handle (connection *TcpCon
 	}
 	request := echoServerHandlerCtx.Buffer[0:n]
 	message := echoServerHandlerCtx.GetServerContext().(*EchoServerContext).message
-	logPrefix := fmt.Sprintf("%v (%d)", echoServerHandlerCtx.GetServerTag(), echoServerHandlerCtx.GetId())
-	logConfig := echoServerHandlerCtx.GetLogConfig()
-	logger := log4go.NewLoggerFromConfig(logConfig, logPrefix)
+	logger := echoServerHandlerCtx.GetLogger()
 	if (message != string(request)) {
 		logger.Error("Wrong Message")
+	} else {
+		logger.Info("message: %v", message)
 	}
 	_, err = connection.Write(request)
 	return err
