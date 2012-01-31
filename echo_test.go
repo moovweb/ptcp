@@ -10,45 +10,54 @@ import (
 const requestBufferSize = 1000
 
 type EchoServerContext struct {
-	*BasicServerContext
+	*DefaultServerContext
 	message string
 }
 
 type EchoServerHandlerContext struct {
-	*BasicServerHandlerContext
+	*DefaultServerHandlerContext
 	Buffer []byte
 }
 
 func NewEchoServerContext(message string, blocking bool, numHandlers int) ServerContext {
-	esCtx := &EchoServerContext{message:message}
+	echoServerCtx := &EchoServerContext{message:message}
 	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.DEBUG), SysLogLevel: int(log4go.DEBUG)}
-	esCtx.BasicServerContext = NewBasicServerContext(logConfig, numHandlers, blocking)
-	return esCtx
+	echoServerCtx.DefaultServerContext = NewDefaultServerContext(logConfig, numHandlers, blocking, "EchoServer")
+	echoServerCtx.ServerHandlerContextConstructor = NewEchoServerHandlerContext
+	return echoServerCtx
 }
 
-func (esCtx *EchoServerContext) NewServerHandlerContext(id uint32) ServerHandlerContext {
-	bsCtx := esCtx.BasicServerContext
-	shCtx := bsCtx.NewServerHandlerContext(id)
-	eshCtx := &EchoServerHandlerContext{}
-	eshCtx.BasicServerHandlerContext = shCtx.(*BasicServerHandlerContext)
-	eshCtx.Buffer = make([]byte, requestBufferSize)
-	//import!!! we need to set the server context to the caller object; otherwise it is pointed to eshCtx.BasicServerContext
-	eshCtx.ServerCtx = esCtx
-	return eshCtx
+func NewEchoServerHandlerContext(id uint32, serverCtx ServerContext) ServerHandlerContext {
+	echoServerHandlerCtx := &EchoServerHandlerContext{}
+	echoServerHandlerCtx.Buffer = make([]byte, requestBufferSize)
+	echoServerHandlerCtx.DefaultServerHandlerContext = NewDefaultServerHandlerContext(id, serverCtx)
+	return echoServerHandlerCtx
 }
 
-func (eshCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err os.Error) {
-	n, err := connection.Read(eshCtx.Buffer)
+func (echoServerHandlerCtx *EchoServerHandlerContext) GetLogger() log4go.Logger {
+	if echoServerHandlerCtx.Logger == nil {
+		logPrefix := fmt.Sprintf("%v (%d) Mikey", echoServerHandlerCtx.GetServerTag(), echoServerHandlerCtx.GetId())
+		logConfig := echoServerHandlerCtx.GetLogConfig()
+		echoServerHandlerCtx.Logger = log4go.NewLoggerFromConfig(logConfig, logPrefix)
+	}
+	return echoServerHandlerCtx.Logger
+}
+
+func (echoServerHandlerCtx *EchoServerHandlerContext) Handle (connection *TcpConnection) (err os.Error) {
+	n, err := connection.Read(echoServerHandlerCtx.Buffer)
 	if err != nil {
 		return
 	}
 	if n <= 0 {
 		return os.NewError("should receive more than 0 bytes")
 	}
-	request := eshCtx.Buffer[0:n]
-	message := eshCtx.ServerCtx.(*EchoServerContext).message
+	request := echoServerHandlerCtx.Buffer[0:n]
+	message := echoServerHandlerCtx.GetServerContext().(*EchoServerContext).message
+	logger := echoServerHandlerCtx.GetLogger()
 	if (message != string(request)) {
-		eshCtx.Logger.Error("Wrong Message")
+		logger.Error("Wrong Message")
+	} else {
+		logger.Info("message: %v", message)
 	}
 	_, err = connection.Write(request)
 	return err
