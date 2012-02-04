@@ -17,7 +17,7 @@ import (
 	"bytes"
 	"net"
 	"os"
-	"log"
+	"crypto/tls"
 )
 
 /*
@@ -25,6 +25,7 @@ import (
  */
 
 type TcpConnection struct {
+	tlsState   *tls.ConnectionState
   	readTimeout	int64			// 
 	writeTimeout   int64			//
 	rawData		*bytes.Buffer	// save the rawData as we parse it
@@ -36,6 +37,11 @@ const maxRawDataLen = 64*1024 //64K bytes
 
 func NewTcpConnection(conn net.Conn) (connection *TcpConnection) {
 	connection = &TcpConnection{Conn: conn, rawData: nil}
+	if tlsConn, ok := conn.(*tls.Conn); ok {
+		tlsConn.Handshake()
+		connection.tlsState = new(tls.ConnectionState)
+		*connection.tlsState = tlsConn.ConnectionState()
+	}
 	return connection
 }
 
@@ -69,11 +75,9 @@ func (connection *TcpConnection) Read(data []byte) (n int, err os.Error) {
 	if (err == nil || err == os.EOF) && n > 0 && connection.rawData != nil {
 		nn, err1 := connection.rawData.Write(data[:n])
 		if err1 != nil {
-			log.Printf("Save read data error: %v", err1)
 			connection.rawData.Reset()
 		}
 		if nn != n {
-			log.Printf("Save read data %d bytes saved %d bytes expected", nn, n)
 			connection.rawData.Reset()
 		}
 	}

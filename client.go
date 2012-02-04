@@ -38,9 +38,11 @@ func ConnectTLS(addr string, hostName string) (connection *TcpConnection, err os
 
 	// Initiate TLS and check remote host name against certificate.
 	tlsConn := tls.Client(conn, nil)
+	/*
 	if err = tlsConn.Handshake(); err != nil {
 		return nil, err
 	}
+	*/
 	/*if err = tlsConn.VerifyHostname(hostName); err != nil {
 		return nil, err
 	}*/
