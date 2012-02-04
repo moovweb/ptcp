@@ -35,14 +35,20 @@ type TcpConnection struct {
 const maxRawDataLen = 64*1024 //64K bytes
 
 
-func NewTcpConnection(conn net.Conn) (connection *TcpConnection) {
-	connection = &TcpConnection{Conn: conn, rawData: nil}
+func NewTcpConnection(conn net.Conn) (connection *TcpConnection, err os.Error) {
 	if tlsConn, ok := conn.(*tls.Conn); ok {
 		tlsConn.Handshake()
-		connection.tlsState = new(tls.ConnectionState)
-		*connection.tlsState = tlsConn.ConnectionState()
+		tlsState := new(tls.ConnectionState)
+		*tlsState = tlsConn.ConnectionState()
+		if tlsState.HandshakeComplete {
+			connection = &TcpConnection{Conn: conn, rawData: nil, tlsState: tlsState}
+		} else {
+			err = os.NewError("Handshake incomplete")
+		}
+	} else {
+		connection = &TcpConnection{Conn: conn, rawData: nil}
 	}
-	return connection
+	return
 }
 
 func (connection *TcpConnection ) SetReadTimeout(readTimeout int64) (err os.Error) {
