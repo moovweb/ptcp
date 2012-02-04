@@ -24,13 +24,13 @@ func Connect(addr string) (connection *TcpConnection, err os.Error) {
 	}
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		return nil, err
+		return
 	}
-	connection = NewTcpConnection(conn)
-	return connection, nil
+	connection, err = NewTcpConnection(conn)
+	return
 }
 
-func ConnectTLS(addr string, hostName string) (connection *TcpConnection, err os.Error) {
+func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection *TcpConnection, err os.Error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -38,16 +38,14 @@ func ConnectTLS(addr string, hostName string) (connection *TcpConnection, err os
 
 	// Initiate TLS and check remote host name against certificate.
 	tlsConn := tls.Client(conn, nil)
-	/*
-	if err = tlsConn.Handshake(); err != nil {
-		return nil, err
+
+	connection, err = NewTcpConnection(tlsConn)
+	if err == nil && shouldVerifyHost {
+		if err = tlsConn.VerifyHostname(hostName); err != nil {
+			return
+		}
 	}
-	*/
-	/*if err = tlsConn.VerifyHostname(hostName); err != nil {
-		return nil, err
-	}*/
-	connection = NewTcpConnection(tlsConn)
-	return connection, nil
+	return
 }
 
 
