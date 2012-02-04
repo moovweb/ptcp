@@ -200,8 +200,12 @@ func serve(listener net.Listener, serverCtx ServerContext) os.Error {
 			}
 			logger.Critical("Server: fatal error: %v", err)
 		}
-		connection := NewTcpConnection(conn)
-		connectionQueue <- connection
+		connection, err := NewTcpConnection(conn)
+		if err != nil {
+			conn.Close()
+		} else {
+			connectionQueue <- connection
+		}
 	}
 	panic("should not be reached")
 }
