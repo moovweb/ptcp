@@ -28,6 +28,7 @@ type ServerContext interface {
 	GetLogConfig() *log4go.LogConfig
 	GetServerTag() string
 	IsBlocking() bool
+	ShouldSaveReadData() bool
 	GetServerHandlerContextConstructor() func(uint32, ServerContext) ServerHandlerContext
 	Cleanup()
 }
@@ -47,6 +48,7 @@ type DefaultServerContext struct {
 	ServerTag string
 	PoolSize int
 	Blocking bool
+	SaveReadData bool
 	LogConfig *log4go.LogConfig
 	ServerHandlerContextConstructor func(uint32, ServerContext) ServerHandlerContext
 }
@@ -73,6 +75,10 @@ func NewDefaultServerHandlerContext(id uint32, serverCtx ServerContext) (default
 
 func (defaultServerCtx *DefaultServerContext) IsBlocking() bool {
 	return defaultServerCtx.Blocking
+}
+
+func (defaultServerCtx *DefaultServerContext) ShouldSaveReadData() bool {
+	return defaultServerCtx.SaveReadData
 }
 
 func (defaultServerCtx *DefaultServerContext) GetPoolSize() int {
@@ -195,6 +201,7 @@ func serve(listener net.Listener, serverCtx ServerContext) os.Error {
 	}
 	logger.Info("Created %d handlers for server: %q", poolSize, serverCtx.GetServerTag())
 	
+	saveReadData := serverCtx.ShouldSaveReadData()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -208,6 +215,9 @@ func serve(listener net.Listener, serverCtx ServerContext) os.Error {
 		if err != nil {
 			conn.Close()
 		} else {
+			if saveReadData {
+				connection.EnableSaveReadData()
+			}
 			connectionQueue <- connection
 		}
 	}
