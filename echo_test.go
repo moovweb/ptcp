@@ -25,6 +25,7 @@ func NewEchoServerContext(message string, blocking bool, numHandlers int) Server
 	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.DEBUG), SysLogLevel: int(log4go.DEBUG)}
 	echoServerCtx.DefaultServerContext = NewDefaultServerContext(logConfig, numHandlers, blocking, "EchoServer")
 	echoServerCtx.ServerHandlerContextConstructor = NewEchoServerHandlerContext
+	echoServerCtx.SaveReadData = true
 	return echoServerCtx
 }
 
@@ -103,7 +104,6 @@ func TestEcho(t *testing.T) {
 	ListenAndServe(address, sCtx)
 	for i := 0; i < 10; i++ {
 		connection, err := Connect(address)
-		connection.EnableSaveReadData()
 		if err != nil {
 			t.Error("error when connecting to %s: $v\n", address, err) 
 		}
@@ -129,7 +129,6 @@ func TestEchoSSL(t *testing.T) {
 	ListenAndServeTLS(address, sCtx, "./keys/server.crt", "./keys/server.key")
 	for i := 0; i < 10; i++ {
 		connection, err := ConnectTLS(address, "localhost", false)
-		//connection.EnableSaveReadData()
 		if err != nil {
 			t.Error("error when connecting to %s: $v\n", address, err) 
 		}
