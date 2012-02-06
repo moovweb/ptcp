@@ -22,6 +22,7 @@ import (
 	"fmt"
 )
 
+//server state info, shared by all server handlers
 type ServerContext interface {
 	GetPoolSize() int
 	GetLogConfig() *log4go.LogConfig
@@ -31,6 +32,7 @@ type ServerContext interface {
 	Cleanup()
 }
 
+//server handler state info
 type ServerHandlerContext interface {
 	GetServerContext() ServerContext
 	GetId() uint32
@@ -54,6 +56,10 @@ type DefaultServerHandlerContext struct {
 	Id uint32
 	Logger log4go.Logger
 }
+
+var (
+	ErrorClientCloseConnection = os.EOF
+)
 
 func NewDefaultServerContext(logConfig *log4go.LogConfig, poolSize int, blocking bool, serverTag string) (defaultServerCtx *DefaultServerContext) {
 	defaultServerCtx = &DefaultServerContext{PoolSize:poolSize, Blocking:blocking, LogConfig:logConfig, ServerTag: serverTag}
@@ -136,11 +142,9 @@ func handleConnections(connectionQueue chan *TcpConnection, serverHandlerCtx Ser
 	for {
 		connection := <-connectionQueue
 		err := serverHandlerCtx.Handle(connection)
-		if err == os.EOF {
-			logger.Info("Server handler is closing connection because remote peer has closed it: %q", connection.RemoteAddr())
+		if err == ErrorClientCloseConnection {
+			logger.Info("Server handler is closing connection because remote peer closed it: %q", connection.RemoteAddr())
 			connection.Close()
-		} else if err == os.NewError("client required the connection be closed\n") {
-			//ok
 		} else if err != nil {
 			logger.Warn("Server handler is closing connection due to error: %v", err)
 			connection.Close()
