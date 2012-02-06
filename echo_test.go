@@ -5,6 +5,7 @@ import (
 	"os"
 	"log4go"
 	"fmt"
+	"sync"
 )
 
 const requestBufferSize = 1000
@@ -96,6 +97,7 @@ func (ech *EchoClientHandler) Handle (connection *TcpConnection, request interfa
 func TestEcho(t *testing.T) {
 	address := "localhost:9090"
 	message := "hello world"
+	wg := &sync.WaitGroup{}
 	clientHandler := NewEchoClientHandler()
 	sCtx := NewEchoServerContext(message, false, 10)
 	ListenAndServe(address, sCtx)
@@ -105,14 +107,43 @@ func TestEcho(t *testing.T) {
 		if err != nil {
 			t.Error("error when connecting to %s: $v\n", address, err) 
 		}
+		wg.Add(1)
 		go func() {
 			defer connection.Close()
 			rawResponse, _, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
 			if string(rawResponse) != message || err != nil {
 				t.Errorf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(rawResponse), message)
 			}
+			wg.Done()
 		}()
 	}
+	wg.Wait()
+}
+
+func TestEchoSSL(t *testing.T) {
+	address := "localhost:9092"
+	message := "hello world"
+	wg := &sync.WaitGroup{}
+	clientHandler := NewEchoClientHandler()
+	sCtx := NewEchoServerContext(message, false, 10)
+	ListenAndServeTLS(address, sCtx, "./keys/server.crt", "./keys/server.key")
+	for i := 0; i < 10; i++ {
+		connection, err := ConnectTLS(address, "localhost", false)
+		//connection.EnableSaveReadData()
+		if err != nil {
+			t.Error("error when connecting to %s: $v\n", address, err) 
+		}
+		wg.Add(1)
+		go func() {
+			defer connection.Close()
+			rawResponse, _, err := SendAndReceive(connection, clientHandler, ([]byte)(message))
+			if string(rawResponse) != message || err != nil {
+				t.Errorf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(rawResponse), message)
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 func BenchmarkEcho(b *testing.B) {
