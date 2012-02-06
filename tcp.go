@@ -72,8 +72,10 @@ func (connection *TcpConnection ) SetWriteTimeout(writeTimeout int64) (err os.Er
 }
 
 func (connection *TcpConnection) EnableSaveReadData() {
-	buffer := make([]byte, 0, InitialBufferLength)
-	connection.rawData = bytes.NewBuffer(buffer)
+	if connection.rawData == nil {
+		buffer := make([]byte, 0, InitialBufferLength)
+		connection.rawData = bytes.NewBuffer(buffer)
+	}
 }
 
 func (connection *TcpConnection) DisableSaveReadData() {
