@@ -61,6 +61,7 @@ type DefaultServerHandlerContext struct {
 
 var (
 	ErrorClientCloseConnection = os.EOF
+	ErrorServerCloseConnection = os.NewError("server needs to close the connection")
 )
 
 func NewDefaultServerContext(logConfig *log4go.LogConfig, poolSize int, blocking bool, serverTag string) (defaultServerCtx *DefaultServerContext) {
@@ -149,7 +150,10 @@ func handleConnections(connectionQueue chan *TcpConnection, serverHandlerCtx Ser
 		connection := <-connectionQueue
 		err := serverHandlerCtx.Handle(connection)
 		if err == ErrorClientCloseConnection {
-			logger.Info("Server handler is closing connection because remote peer closed it: %q", connection.RemoteAddr())
+			logger.Info("Server handler is closing connection because the client has closed it: %q", connection.RemoteAddr())
+			connection.Close()
+		} else if err == ErrorServerCloseConnection {
+			logger.Info("Server handler is closing connection: %q", connection.RemoteAddr())
 			connection.Close()
 		} else if err != nil {
 			logger.Warn("Server handler is closing connection due to error: %v", err)
