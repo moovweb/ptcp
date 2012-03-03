@@ -120,6 +120,7 @@ func TestEcho(t *testing.T) {
 	wg.Wait()
 }
 
+/*
 func TestEchoSSL(t *testing.T) {
 	address := "localhost:9092"
 	message := "hello world"
@@ -144,7 +145,7 @@ func TestEchoSSL(t *testing.T) {
 	}
 	wg.Wait()
 }
-
+*/
 func BenchmarkEcho(b *testing.B) {
 	b.StopTimer()
 	address := "localhost:9090"
