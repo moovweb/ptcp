@@ -41,7 +41,10 @@ var (
 //
 func NewTcpConnection(conn net.Conn) (connection *TcpConnection, err os.Error) {
 	if tlsConn, ok := conn.(*tls.Conn); ok {
-		tlsConn.Handshake()
+		err = tlsConn.Handshake()
+		if err != nil {
+			return
+		}
 		tlsState := new(tls.ConnectionState)
 		*tlsState = tlsConn.ConnectionState()
 		if tlsState.HandshakeComplete {
