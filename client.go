@@ -45,6 +45,9 @@ func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection
 
 	connection, err = NewTcpConnection(tlsConn)
 	if err != nil { //retry once if handshake failed
+		//close the old connection
+		tlsConn.Close()
+
 		conn, err = net.Dial("tcp", addr)
 		if err != nil {
 			return nil, err
