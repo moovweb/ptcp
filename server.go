@@ -217,6 +217,7 @@ func serve(listener net.Listener, serverCtx ServerContext) os.Error {
 		}
 		connection, err := NewTcpConnection(conn)
 		if err != nil {
+			logger.Warn("Failed to create TCP connection: %v", err)
 			conn.Close()
 		} else {
 			if saveReadData {
