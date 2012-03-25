@@ -44,6 +44,14 @@ func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection
 	tlsConn := tls.Client(conn, nil)
 
 	connection, err = NewTcpConnection(tlsConn)
+	if err != nil { //retry once if handshake failed
+		conn, err = net.Dial("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		tlsConn = tls.Client(conn, nil)
+		connection, err = NewTcpConnection(tlsConn)
+	}
 	if err == nil && shouldVerifyHost {
 		if err = tlsConn.VerifyHostname(hostName); err != nil {
 			return
