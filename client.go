@@ -44,14 +44,16 @@ func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection
 	tlsConn := tls.Client(conn, nil)
 
 	connection, err = NewTcpConnection(tlsConn)
-	if err == nil && shouldVerifyHost {
+	if err != nil {
+		tlsConn.Close()
+	} else if shouldVerifyHost {
 		if err = tlsConn.VerifyHostname(hostName); err != nil {
+			tlsConn.Close()
 			return
 		}
 	}
 	return
 }
-
 
 func SendAndReceive(connection *TcpConnection, handler ClientHandler, request interface{}) ([]byte, interface{}, os.Error) {
 	if handler == nil {
@@ -63,4 +65,3 @@ func SendAndReceive(connection *TcpConnection, handler ClientHandler, request in
 type ClientHandler interface {
 	Handle(*TcpConnection, interface{}) ([]byte, interface{}, os.Error)
 }
-
