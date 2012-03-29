@@ -5,6 +5,10 @@ import (
 	"http"
 	"log4go"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"bufio"
+	"strings"
 )
 
 const (
@@ -14,6 +18,7 @@ const (
 
 var HttpHeaderBodySep = []byte("\r\n\r\n")
 var ContentEncodingKey = http.CanonicalHeaderKey("content-encoding")
+var ErrorHttpServerShouldSaveReadData = os.NewError("Server context should set SaveReadData to true")
 
 var statusText = map[int]string{
 	http.StatusContinue:           "Continue",
@@ -96,6 +101,42 @@ func (h *HttpServerHandler) Logger() log4go.Logger {
 }
 
 func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
+	var response []byte
+	httpRequest, request, err := h.ReceiveDownstreamRequest(connection)
+	if err != nil {
+		if err != io.ErrUnexpectedEOF {
+			h.logger.Error("ReceiveDownstreamRequest error: %v", err)
+		} else {
+			err = os.EOF //client has closed the connection?
+		}
+		return
+	}
+
+	h.logger.Debug("Received downstream request:\n\n%v\n", string(request))
+	//logger.Info("Request URL: %s", httpRequest.RawURL)
+	if httpRequest.RawURL == "/moov_check" {
+		h.logger.Debug("moov_check")
+		response = []byte(DefaultOKResponse)
+		connection.Write([]byte(response))
+		err = ErrorServerCloseConnection
+		h.logger.Debug(err.String())
+		return
+	} else if httpRequest.RawURL == "/moov_fail" {
+		h.logger.Error("moov_fail test")
+		response = []byte(DefaultErrorResponse)
+		connection.Write([]byte(response))
+		err = ErrorServerCloseConnection
+		h.logger.Debug(err.String())
+		return
+	}
+
+	_, err = connection.Write([]byte(response))
+
+	if err == nil && !WantsHttp10KeepAlive(httpRequest) {
+		err = ErrorClientCloseConnection
+	}
+
+	h.logger.Debug("Wrote downstream response:\n\n%v\n", string(response))
 	return
 }
 
@@ -114,4 +155,31 @@ func (h *HttpServerHandler) ConnectionQueueLength() int {
 
 func (h *HttpServerHandler) Cleanup() {
 	return
+}
+
+func (h *HttpServerHandler) ReceiveDownstreamRequest(connection *TcpConnection) (httpRequest *http.Request, request []byte, err os.Error) {
+	br := bufio.NewReader(connection)
+	httpRequest, err = http.ReadRequest(br)
+	if err != nil {
+		return
+	}
+	_, err = ioutil.ReadAll(httpRequest.Body)
+	if err != nil {
+		recvd := connection.RawData()
+		h.logger.Notice("Failed to receive a valid HTTP request body: %v (length: %d)", string(recvd), len(recvd))
+		return
+	}
+
+	request = connection.RawData()
+	if request == nil {
+		err = ErrorHttpServerShouldSaveReadData
+	}
+	return
+}
+
+func WantsHttp10KeepAlive(request *http.Request) bool {
+	if request.ProtoMajor != 1 || request.ProtoMinor != 0 {
+		return false
+	}
+	return strings.Contains(strings.ToLower(request.Header.Get("Connection")), "keep-alive")
 }
