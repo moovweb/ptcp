@@ -14,6 +14,12 @@ const DefaultReuqest = "Hello"
 const DefaultResponse = "World"
 const HandlerLimit = 8
 
+type DataStream string
+
+func (d *DataStream) Bytes() []byte {
+	return []byte(*d)
+}
+
 var (
 	DefaultReuqestBytes  = []byte(DefaultReuqest)
 	DefaultResponseBytes = []byte(DefaultResponse)
@@ -86,20 +92,21 @@ func NewEchoClientHandler() *EchoClientHandler {
 	return ech
 }
 
-func (ech *EchoClientHandler) Handle(connection *TcpConnection, request interface{}) (rawResponse []byte, response interface{}, err os.Error) {
+func (ech *EchoClientHandler) Handle(connection *TcpConnection, request Request) (response Response, err os.Error) {
 	_, err = connection.Write(DefaultReuqestBytes)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "err : %v\n", err)
-		return nil, nil, err
+		return nil, err
 	}
 	n, err := connection.Read(ech.Buffer)
 	if err == os.EOF {
 		err = nil
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return ech.Buffer[:n], ech.Buffer[:n], nil
+	data := DataStream(ech.Buffer[:n])
+	return &data, nil
 }
 
 func TestEcho(t *testing.T) {
@@ -116,9 +123,10 @@ func TestEcho(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer connection.Close()
-			rawResponse, _, err := SendAndReceive(connection, clientHandler, ([]byte)(""))
-			if string(rawResponse) != DefaultResponse || err != nil {
-				t.Errorf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(rawResponse), DefaultResponse)
+			data := DataStream("")
+			response, err := SendAndReceive(connection, clientHandler, &data)
+			if string(response.Bytes()) != DefaultResponse || err != nil {
+				t.Errorf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response.Bytes()), DefaultResponse)
 			}
 			wg.Done()
 		}()
@@ -167,9 +175,10 @@ func BenchmarkEcho(b *testing.B) {
 	defer connection.Close()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		rawResponse, _, err := SendAndReceive(connection, clientHandler, ([]byte)(""))
-		if string(rawResponse) != DefaultResponse || err != nil {
-			fmt.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(rawResponse), DefaultResponse)
+		data := DataStream("")
+		response, err := SendAndReceive(connection, clientHandler, &data)
+		if string(response.Bytes()) != DefaultResponse || err != nil {
+			fmt.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response.Bytes()), DefaultResponse)
 		}
 	}
 }
