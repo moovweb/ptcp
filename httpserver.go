@@ -101,7 +101,7 @@ func (h *HttpServerHandler) Logger() log4go.Logger {
 }
 
 func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
-	httpRequest, _, err := h.ReceiveDownstreamRequest(connection)
+	httpRequest, request, err := h.ReceiveDownstreamRequest(connection)
 	if err != nil {
 		if err != io.ErrUnexpectedEOF {
 			h.logger.Error("ReceiveDownstreamRequest error: %v", err)
@@ -111,6 +111,7 @@ func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
 		return
 	}
 
+	h.logger.Debug("Received request:\n%s\n", string(request))
 	_, err = connection.Write([]byte(DefaultOKResponse))
 
 	if err == nil && !WantsHttp10KeepAlive(httpRequest) {

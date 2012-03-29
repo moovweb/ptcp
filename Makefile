@@ -6,8 +6,10 @@ include $(GOROOT)/src/Make.inc
 
 TARG=ptcp
 GOFILES=\
-    tcp.go\
+	tcp.go\
 	server.go\
-    client.go\
+	client.go\
+	httpserver.go\
+	httpclient.go\
 
 include $(GOROOT)/src/Make.pkg
