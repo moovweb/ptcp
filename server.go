@@ -19,44 +19,21 @@ import (
 	"crypto/tls"
 	"time"
 	"log4go"
-	"fmt"
 )
 
-//server state info, shared by all server handlers
-type ServerContext interface {
-	GetPoolSize() int
-	GetLogConfig() *log4go.LogConfig
-	GetServerTag() string
-	IsBlocking() bool
-	ShouldSaveReadData() bool
-	GetServerHandlerContextConstructor() func(uint32, ServerContext) ServerHandlerContext
-	Cleanup()
-}
-
-//server handler state info
-type ServerHandlerContext interface {
-	GetServerContext() ServerContext
-	GetId() uint32
-	GetLogConfig() *log4go.LogConfig
-	GetServerTag() string
-	GetLogger() log4go.Logger
+type ServerHandler interface {
+	/*
+		GetId() uint32
+		GetLogConfig() *log4go.LogConfig
+		GetServerTag() string
+		GetLogger() log4go.Logger
+	*/
 	Handle(*TcpConnection) os.Error
 	Cleanup()
-}
-
-type DefaultServerContext struct {
-	ServerTag                       string
-	PoolSize                        int
-	Blocking                        bool
-	SaveReadData                    bool
-	LogConfig                       *log4go.LogConfig
-	ServerHandlerContextConstructor func(uint32, ServerContext) ServerHandlerContext
-}
-
-type DefaultServerHandlerContext struct {
-	ServerCtx ServerContext
-	Id        uint32
-	Logger    log4go.Logger
+	Spawn() (ServerHandler, os.Error)
+	Logger() log4go.Logger
+	Tag() string
+	ConnectionQueueLength() int
 }
 
 var (
@@ -64,83 +41,10 @@ var (
 	ErrorServerCloseConnection = os.NewError("server needs to close the connection")
 )
 
-func NewDefaultServerContext(logConfig *log4go.LogConfig, poolSize int, blocking bool, serverTag string) (defaultServerCtx *DefaultServerContext) {
-	defaultServerCtx = &DefaultServerContext{PoolSize: poolSize, Blocking: blocking, LogConfig: logConfig, ServerTag: serverTag}
-	return
-}
-
-func NewDefaultServerHandlerContext(id uint32, serverCtx ServerContext) (defaultServerHandlerCtx *DefaultServerHandlerContext) {
-	defaultServerHandlerCtx = &DefaultServerHandlerContext{ServerCtx: serverCtx, Id: id}
-	return
-}
-
-func (defaultServerCtx *DefaultServerContext) IsBlocking() bool {
-	return defaultServerCtx.Blocking
-}
-
-func (defaultServerCtx *DefaultServerContext) ShouldSaveReadData() bool {
-	return defaultServerCtx.SaveReadData
-}
-
-func (defaultServerCtx *DefaultServerContext) GetPoolSize() int {
-	return defaultServerCtx.PoolSize
-}
-
-func (defaultServerCtx *DefaultServerContext) GetLogConfig() *log4go.LogConfig {
-	return defaultServerCtx.LogConfig
-}
-
-func (defaultServerCtx *DefaultServerContext) GetServerTag() string {
-	return defaultServerCtx.ServerTag
-}
-
-func (defaultServerCtx *DefaultServerContext) GetServerHandlerContextConstructor() (constructor func(uint32, ServerContext) ServerHandlerContext) {
-	constructor = defaultServerCtx.ServerHandlerContextConstructor
-	return
-}
-
-func (defaultServerCtx *DefaultServerContext) Cleanup() {
-}
-
-//--------------------------------------
-
-func (defaultServerHandlerCtx *DefaultServerHandlerContext) Handle(*TcpConnection) os.Error {
-	return nil
-}
-
-func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetId() uint32 {
-	return defaultServerHandlerCtx.Id
-}
-
-func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetLogConfig() *log4go.LogConfig {
-	return defaultServerHandlerCtx.GetServerContext().GetLogConfig()
-}
-
-func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetLogger() log4go.Logger {
-	if defaultServerHandlerCtx.Logger == nil {
-		logPrefix := fmt.Sprintf("%v (%d)", defaultServerHandlerCtx.GetServerTag(), defaultServerHandlerCtx.GetId())
-		logConfig := defaultServerHandlerCtx.GetLogConfig()
-		defaultServerHandlerCtx.Logger = log4go.NewLoggerFromConfig(logConfig, logPrefix)
-	}
-	return defaultServerHandlerCtx.Logger
-}
-
-func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetServerTag() string {
-	return defaultServerHandlerCtx.GetServerContext().GetServerTag()
-}
-
-func (defaultServerHandlerCtx *DefaultServerHandlerContext) GetServerContext() (serverCtx ServerContext) {
-	serverCtx = defaultServerHandlerCtx.ServerCtx
-	return
-}
-
-func (bshCtx *DefaultServerHandlerContext) Cleanup() {
-}
-
-func handleConnections(connectionQueue chan *TcpConnection, serverHandlerCtx ServerHandlerContext) {
-	logger := serverHandlerCtx.GetLogger()
+func handleConnections(connectionQueue chan *TcpConnection, h ServerHandler) {
+	logger := h.Logger()
 	defer func() {
-		serverHandlerCtx.Cleanup()
+		h.Cleanup()
 		if r := recover(); r != nil {
 			logger.Error("Recovered in server handler %v\n", r)
 		}
@@ -148,7 +52,7 @@ func handleConnections(connectionQueue chan *TcpConnection, serverHandlerCtx Ser
 
 	for {
 		connection := <-connectionQueue
-		err := serverHandlerCtx.Handle(connection)
+		err := h.Handle(connection)
 		if err == ErrorClientCloseConnection {
 			logger.Info("Server handler is closing connection because the client has closed it: %q", connection.RemoteAddr())
 			connection.Close()
@@ -171,41 +75,22 @@ func handleConnections(connectionQueue chan *TcpConnection, serverHandlerCtx Ser
  * then call connection.Handler to reply to them.
  */
 
-func serve(listener net.Listener, serverCtx ServerContext) os.Error {
+func serve(listener net.Listener, h ServerHandler) os.Error {
 	defer listener.Close()
 
-	serverTag := serverCtx.GetServerTag()
-	//create a logger with the proper prefix and config
-	logPrefix := fmt.Sprintf("%v", serverTag)
-	logConfig := serverCtx.GetLogConfig()
-	logger := log4go.NewLoggerFromConfig(logConfig, logPrefix)
-
-	var id uint32 = 0
-
-	//get the handler pool size
-	poolSize := serverCtx.GetPoolSize()
-
-	//need at least one handler
-	if poolSize <= 0 {
-		logger.Error("You need at least one handler for server: %q", serverTag)
-		panic("Need at least one handler for server")
-	}
+	logger := h.Logger()
+	connQueueLen := h.ConnectionQueueLength()
 
 	//create a queue to share incoming connections
-	//allow the queue to buffer up to poolSize connections
-	connectionQueue := make(chan *TcpConnection, poolSize)
-
-	//get the handler constructor
-	handlerConstructor := serverCtx.GetServerHandlerContextConstructor()
-	//create a number of handler goroutines to process connections
-	for i := 0; i < poolSize; i++ {
-		serverHandlerCtx := handlerConstructor(id, serverCtx)
-		go handleConnections(connectionQueue, serverHandlerCtx)
-		id++
+	//allow the queue to buffer up to a given number of connections 
+	connectionQueue := make(chan *TcpConnection, connQueueLen)
+	count := 0
+	for newH, err := h.Spawn(); err == nil; newH, err = h.Spawn() {
+		go handleConnections(connectionQueue, newH)
+		count++
 	}
-	logger.Info("Created %d handlers for server: %q", poolSize, serverCtx.GetServerTag())
+	logger.Info("Created %d handlers for server: %q", count, h.Tag())
 
-	saveReadData := serverCtx.ShouldSaveReadData()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -219,9 +104,7 @@ func serve(listener net.Listener, serverCtx ServerContext) os.Error {
 		if err != nil {
 			conn.Close()
 		} else {
-			if saveReadData {
-				connection.EnableSaveReadData()
-			}
+			connection.EnableSaveReadData()
 			connectionQueue <- connection
 		}
 	}
@@ -239,20 +122,20 @@ func listen(addr string, ssl bool) (listener net.Listener, err os.Error) {
 	return net.Listen("tcp", addr)
 }
 
-func ListenAndServe(addr string, serverCtx ServerContext) os.Error {
+func ListenAndServe(addr string, h ServerHandler, blocking bool) os.Error {
 	listener, err := listen(addr, false)
 	if err != nil {
 		return err
 	}
-	if serverCtx.IsBlocking() {
-		serve(listener, serverCtx)
+	if blocking {
+		serve(listener, h)
 	} else {
-		go serve(listener, serverCtx)
+		go serve(listener, h)
 	}
 	return nil
 }
 
-func ListenAndServeTLS(addr string, sCtx ServerContext, certFile string, keyFile string) os.Error {
+func ListenAndServeTLS(addr string, h ServerHandler, blocking bool, certFile string, keyFile string) os.Error {
 	config := &tls.Config{
 		Rand:       rand.Reader,
 		Time:       time.Seconds,
@@ -275,10 +158,10 @@ func ListenAndServeTLS(addr string, sCtx ServerContext, certFile string, keyFile
 		return err
 	}
 
-	if sCtx.IsBlocking() {
-		serve(tlsListener, sCtx)
+	if blocking {
+		serve(tlsListener, h)
 	} else {
-		go serve(tlsListener, sCtx)
+		go serve(tlsListener, h)
 	}
 	return nil
 }
