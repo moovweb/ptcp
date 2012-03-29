@@ -18,9 +18,15 @@ import (
 	"crypto/tls"
 )
 
-var (
-	ErrorMissingClientHandler = os.NewError("Client missing a handler")
-)
+var ErrorMissingClientHandler = os.NewError("Client missing a handler")
+
+type Request interface {
+	Bytes() []byte
+}
+
+type Response interface {
+	Bytes() []byte
+}
 
 func Connect(addr string) (connection *TcpConnection, err os.Error) {
 	if addr == "" {
@@ -55,13 +61,13 @@ func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection
 	return
 }
 
-func SendAndReceive(connection *TcpConnection, handler ClientHandler, request interface{}) ([]byte, interface{}, os.Error) {
+func SendAndReceive(connection *TcpConnection, handler ClientHandler, request Request) (Response, os.Error) {
 	if handler == nil {
-		return nil, nil, ErrorMissingClientHandler
+		return nil, ErrorMissingClientHandler
 	}
 	return handler.Handle(connection, request)
 }
 
 type ClientHandler interface {
-	Handle(*TcpConnection, interface{}) ([]byte, interface{}, os.Error)
+	Handle(*TcpConnection, Request) (Response, os.Error)
 }
