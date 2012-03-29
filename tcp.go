@@ -18,22 +18,22 @@ import (
 
 // TcpConnection is a thin wrapper around TCP socket connection
 type TcpConnection struct {
-	tlsState   *tls.ConnectionState //TLS state info
-  	readTimeout	int64			//read timeout
-	writeTimeout   int64		//write timeout
-	rawData		*bytes.Buffer	//save the rawData as we parse it
-  	net.Conn					//socket connection
+	tlsState     *tls.ConnectionState //TLS state info
+	readTimeout  int64                //read timeout
+	writeTimeout int64                //write timeout
+	rawData      *bytes.Buffer        //save the rawData as we parse it
+	net.Conn                          //socket connection
 }
 
 //InitialBufferLength is the size of buffer allocated initially.
 //The buffer can be expanded if needed
 //The initial length should not be too big or small
-const InitialBufferLength = 64*1024 //64K bytes
+const InitialBufferLength = 64 * 1024 //64K bytes
 
 var (
 	//Handshake failure
 	ErrorTLSHandshake = os.NewError("Handshake Failed")
-	ErrorReadTimeout = os.NewError("Invalid Read Timeout")
+	ErrorReadTimeout  = os.NewError("Invalid Read Timeout")
 	ErrorWriteTimeout = os.NewError("Invalid Write Timeout")
 )
 
@@ -58,7 +58,7 @@ func NewTcpConnection(conn net.Conn) (connection *TcpConnection, err os.Error) {
 	return
 }
 
-func (connection *TcpConnection ) SetReadTimeout(readTimeout int64) (err os.Error) {
+func (connection *TcpConnection) SetReadTimeout(readTimeout int64) (err os.Error) {
 	if readTimeout > 0 {
 		connection.readTimeout = readTimeout
 		return connection.Conn.SetReadTimeout(connection.readTimeout)
@@ -66,7 +66,7 @@ func (connection *TcpConnection ) SetReadTimeout(readTimeout int64) (err os.Erro
 	return ErrorReadTimeout
 }
 
-func (connection *TcpConnection ) SetWriteTimeout(writeTimeout int64) (err os.Error) {
+func (connection *TcpConnection) SetWriteTimeout(writeTimeout int64) (err os.Error) {
 	if writeTimeout > 0 {
 		connection.writeTimeout = writeTimeout
 		return connection.Conn.SetWriteTimeout(connection.writeTimeout)
@@ -116,6 +116,6 @@ func (connection *TcpConnection) Reset() os.Error {
 func (connection *TcpConnection) RawData() (data []byte) {
 	if connection.rawData != nil {
 		return connection.rawData.Bytes()
-	} 
+	}
 	return nil
 }
