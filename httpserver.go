@@ -101,8 +101,7 @@ func (h *HttpServerHandler) Logger() log4go.Logger {
 }
 
 func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
-	var response []byte
-	httpRequest, request, err := h.ReceiveDownstreamRequest(connection)
+	httpRequest, _, err := h.ReceiveDownstreamRequest(connection)
 	if err != nil {
 		if err != io.ErrUnexpectedEOF {
 			h.logger.Error("ReceiveDownstreamRequest error: %v", err)
@@ -112,31 +111,13 @@ func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
 		return
 	}
 
-	h.logger.Debug("Received downstream request:\n\n%v\n", string(request))
-	//logger.Info("Request URL: %s", httpRequest.RawURL)
-	if httpRequest.RawURL == "/moov_check" {
-		h.logger.Debug("moov_check")
-		response = []byte(DefaultOKResponse)
-		connection.Write([]byte(response))
-		err = ErrorServerCloseConnection
-		h.logger.Debug(err.String())
-		return
-	} else if httpRequest.RawURL == "/moov_fail" {
-		h.logger.Error("moov_fail test")
-		response = []byte(DefaultErrorResponse)
-		connection.Write([]byte(response))
-		err = ErrorServerCloseConnection
-		h.logger.Debug(err.String())
-		return
-	}
-
-	_, err = connection.Write([]byte(response))
+	_, err = connection.Write([]byte(DefaultOKResponse))
 
 	if err == nil && !WantsHttp10KeepAlive(httpRequest) {
 		err = ErrorClientCloseConnection
 	}
 
-	h.logger.Debug("Wrote downstream response:\n\n%v\n", string(response))
+	h.logger.Debug("Wrote downstream response:\n\n%v\n", string(DefaultOKResponse))
 	return
 }
 
