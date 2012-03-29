@@ -37,6 +37,7 @@ type ServerHandler interface {
 }
 
 var (
+	ErrHandlerLimitReached     = os.NewError("Handler limit reached")
 	ErrorClientCloseConnection = os.EOF
 	ErrorServerCloseConnection = os.NewError("server needs to close the connection")
 )
