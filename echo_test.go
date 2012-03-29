@@ -19,8 +19,6 @@ var (
 	DefaultResponseBytes = []byte(DefaultResponse)
 )
 
-var ErrHandlerLimitReached = os.NewError("Handler limit reached")
-
 type EchoServerHandler struct {
 	count  int
 	id     uint32
