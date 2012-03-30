@@ -77,8 +77,5 @@ type UpstreamHttpResponse struct {
 }
 
 func (resp *UpstreamHttpResponse) Bytes() []byte {
-	response := append(resp.RawHeader, HttpHeaderBodySep...)
-	response = append(response, resp.Body...)
-	return response
-
+	return append(resp.RawHeader, resp.Body...)
 }
