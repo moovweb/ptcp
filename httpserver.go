@@ -54,8 +54,7 @@ func (h *HttpServerHandler) Tag() (tag string) {
 }
 
 func (h *HttpServerHandler) ConnectionQueueLength() int {
-	//do not queue any connections
-	return 4
+	return h.NumHandlers
 }
 
 func (h *HttpServerHandler) Cleanup() {
