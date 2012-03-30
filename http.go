@@ -5,7 +5,7 @@ import "os"
 
 const (
 	DefaultErrorResponse = "HTTP/1.1 500\r\nConnection: close\r\nContent-Type: text/html;\r\nContent-Length: 21\r\n\r\nInternal Server Error"
-	DefaultOKResponse    = "HTTP/1.0 200 OK\r\nConnection: close\r\nContent-Type: text/plain;\r\nContent-Length: 2\r\n\r\nOK"
+	DefaultOKResponse    = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain;\r\nContent-Length: 2\r\n\r\nOK"
 )
 
 var HttpHeaderBodySep = []byte("\r\n\r\n")
