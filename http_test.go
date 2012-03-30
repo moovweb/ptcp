@@ -1,7 +1,7 @@
 package ptcp
 
 import "testing"
-//import "sync"
+import "sync"
 import "log4go"
 import "fmt"
 import "log"
