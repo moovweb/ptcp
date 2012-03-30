@@ -4,6 +4,7 @@ import (
 	"testing"
 	"os"
 	"log4go"
+	"log"
 	"fmt"
 	"sync"
 )
@@ -48,7 +49,7 @@ func (h *EchoServerHandler) Spawn() (newH ServerHandler, err os.Error) {
 func (h *EchoServerHandler) Logger() log4go.Logger {
 	if h.logger == nil {
 		logPrefix := fmt.Sprintf("%s Mikey", h.Tag())
-		logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.INFO)}
+		logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.ERROR)}
 		h.logger = log4go.NewLoggerFromConfig(logConfig, logPrefix)
 	}
 	return h.logger
@@ -178,7 +179,7 @@ func BenchmarkEcho(b *testing.B) {
 		data := DataStream("")
 		response, err := SendAndReceive(connection, clientHandler, &data)
 		if string(response.Bytes()) != DefaultResponse || err != nil {
-			fmt.Printf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response.Bytes()), DefaultResponse)
+			log.Fatalf("failed in eccho \"hello world\": err: %v; received %q, expected %q\n", err, string(response.Bytes()), DefaultResponse)
 		}
 	}
 }

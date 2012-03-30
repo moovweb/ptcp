@@ -1,9 +1,10 @@
 package ptcp
 
 import "testing"
-import "sync"
+//import "sync"
 import "log4go"
 import "fmt"
+import "log"
 
 func TestHttpClientServer(t *testing.T) {
 	address := "localhost:9090"
@@ -24,9 +25,9 @@ func TestHttpClientServer(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer connection.Close()
-			rawResponse, _, err := SendAndReceive(connection, clientHandler, upstreamHttpRequest)
-			if string(rawResponse) != DefaultOKResponse || err != nil {
-				t.Errorf("err: %v; received %q, expected %q\n", err, string(rawResponse), DefaultOKResponse)
+			response, err := SendAndReceive(connection, clientHandler, upstreamHttpRequest)
+			if string(response.Bytes()) != DefaultOKResponse || err != nil {
+				t.Errorf("err: %v; received %q, expected %q\n", err, string(response.Bytes()), DefaultOKResponse)
 			}
 			wg.Done()
 		}()
@@ -39,10 +40,10 @@ func BenchmarkHttpClientServer(b *testing.B) {
 	address := "localhost:9090"
 	clientHandler := &HttpClientHandler{}
 	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.INFO)}
-	serverHandler := NewHttpServerHandler(logConfig, 4, "test_http_srv")
+	serverHandler := NewHttpServerHandler(logConfig, 1, "test_http_srv")
 	ListenAndServe(address, serverHandler, false)
 	upstreamHttpRequest := &UpstreamHttpRequest{}
-	upstreamHttpRequest.Request = ([]byte)("GET / HTTP/1.1\r\n\r\n")
+	upstreamHttpRequest.Request = ([]byte)("GET / HTTP/1.1\r\nConnection: keep-alive\r\n\r\n")
 	upstreamHttpRequest.HttpMethod = "GET"
 	connection, err := Connect(address)
 	connection.EnableSaveReadData()
@@ -53,9 +54,9 @@ func BenchmarkHttpClientServer(b *testing.B) {
 	defer connection.Close()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		rawResponse, _, err := SendAndReceive(connection, clientHandler, upstreamHttpRequest)
-		if string(rawResponse) != DefaultOKResponse || err != nil {
-			fmt.Errorf("err: %v; received %q, expected %q\n", err, string(rawResponse), DefaultOKResponse)
+		_, err := SendAndReceive(connection, clientHandler, upstreamHttpRequest)
+		if err != nil {
+			log.Fatalf("err: %s", err.String())
 		}
 	}
 }

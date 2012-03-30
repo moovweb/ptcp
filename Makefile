@@ -9,6 +9,7 @@ GOFILES=\
 	tcp.go\
 	server.go\
 	client.go\
+	http.go\
 	httpserver.go\
 	httpclient.go\
 
