@@ -62,8 +62,8 @@ var statusText = map[int]string{
 }
 
 type UpstreamHttpRequest struct {
-	Request    []byte
-	HttpMethod string
+	HttpRequest *http.Request
+	Request     []byte
 }
 
 func (req *UpstreamHttpRequest) Bytes() []byte {
