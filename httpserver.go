@@ -62,7 +62,7 @@ func (h *HttpServerHandler) Cleanup() {
 }
 
 func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
-	httpRequest, _, err := h.ReceiveRequest(connection)
+	uHttpRequest, err := h.ReceiveRequest(connection)
 	if err != nil {
 		if err != io.ErrUnexpectedEOF {
 			h.logger.Error("ReceiveDownstreamRequest error: %v", err)
@@ -76,7 +76,7 @@ func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
 
 	_, err = connection.Write([]byte(DefaultOKResponse))
 
-	if err == nil && !WantsConnectionAlive(httpRequest) {
+	if err == nil && !WantsConnectionAlive(uHttpRequest.HttpRequest) {
 		closeAfterReply = true
 	}
 
@@ -88,9 +88,9 @@ func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
 	return
 }
 
-func (h *HttpServerHandler) ReceiveRequest(connection *TcpConnection) (httpRequest *http.Request, rawRequest []byte, err os.Error) {
+func (h *HttpServerHandler) ReceiveRequest(connection *TcpConnection) (uHttpRequest *UpstreamHttpRequest, err os.Error) {
 	br := bufio.NewReader(connection)
-	httpRequest, err = http.ReadRequest(br)
+	httpRequest, err := http.ReadRequest(br)
 	if err != nil {
 		return
 	}
@@ -100,10 +100,11 @@ func (h *HttpServerHandler) ReceiveRequest(connection *TcpConnection) (httpReque
 		h.logger.Notice("Failed to receive a valid HTTP request body: %v (length: %d)", string(recvd), len(recvd))
 		return
 	}
-	rawRequest = connection.RawData()
+	rawRequest := connection.RawData()
 	if rawRequest == nil {
 		err = ErrorHttpServerShouldSaveReadData
 	}
+	uHttpRequest = &UpstreamHttpRequest{HttpRequest: httpRequest, Request: rawRequest}
 	return
 }
 
