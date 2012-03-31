@@ -32,7 +32,7 @@ func (hch *HttpClientHandler) Handle(connection *TcpConnection, request Request)
 	}
 
 	br := bufio.NewReader(connection)
-	httpResponse, err := http.ReadResponse(br, &http.Request{Method: upstreamReq.HttpMethod})
+	httpResponse, err := http.ReadResponse(br, &http.Request{Method: upstreamReq.HttpRequest.Method})
 	if err != nil {
 		return
 	}

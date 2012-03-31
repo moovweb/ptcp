@@ -5,6 +5,9 @@ import "sync"
 import "log4go"
 import "fmt"
 import "log"
+import "bufio"
+import "bytes"
+import "http"
 
 func TestHttpClientServer(t *testing.T) {
 	address := "localhost:9090"
@@ -15,7 +18,16 @@ func TestHttpClientServer(t *testing.T) {
 	ListenAndServe(address, serverHandler, false)
 	upstreamHttpRequest := &UpstreamHttpRequest{}
 	upstreamHttpRequest.Request = ([]byte)("GET / HTTP/1.1\r\n\r\n")
-	upstreamHttpRequest.HttpMethod = "GET"
+
+	buffer := bytes.NewBuffer(upstreamHttpRequest.Request)
+	bf := bufio.NewReader(buffer)
+	httpRequest, err := http.ReadRequest(bf)
+	if err != nil {
+		t.Errorf("err: %v\n", err)
+		return
+	}
+	upstreamHttpRequest.HttpRequest = httpRequest
+
 	for i := 0; i < 10; i++ {
 		connection, err := Connect(address)
 		connection.EnableSaveReadData()
@@ -44,7 +56,14 @@ func BenchmarkHttpClientServer(b *testing.B) {
 	ListenAndServe(address, serverHandler, false)
 	upstreamHttpRequest := &UpstreamHttpRequest{}
 	upstreamHttpRequest.Request = ([]byte)("GET / HTTP/1.1\r\nConnection: keep-alive\r\n\r\n")
-	upstreamHttpRequest.HttpMethod = "GET"
+	buffer := bytes.NewBuffer(upstreamHttpRequest.Request)
+	bf := bufio.NewReader(buffer)
+	httpRequest, err := http.ReadRequest(bf)
+	if err != nil {
+		log.Fatalf("err: %v\n", err)
+	}
+	upstreamHttpRequest.HttpRequest = httpRequest
+
 	connection, err := Connect(address)
 	connection.EnableSaveReadData()
 	if err != nil {
