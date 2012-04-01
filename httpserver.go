@@ -20,6 +20,8 @@ type HttpServerHandler struct {
 	tag         string
 }
 
+const DefaultConnectionQueueLength = 128
+
 func NewHttpServerHandler(logConfig *log4go.LogConfig, numHandlers int, tag string) *HttpServerHandler {
 	return &HttpServerHandler{logConfig: logConfig, NumHandlers: numHandlers, tag: tag}
 }
@@ -54,7 +56,7 @@ func (h *HttpServerHandler) Tag() (tag string) {
 }
 
 func (h *HttpServerHandler) ConnectionQueueLength() int {
-	return h.NumHandlers
+	return DefaultConnectionQueueLength
 }
 
 func (h *HttpServerHandler) Cleanup() {
