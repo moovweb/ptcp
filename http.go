@@ -63,6 +63,7 @@ var statusText = map[int]string{
 
 type UpstreamHttpRequest struct {
 	HttpRequest *http.Request
+	Ssl         bool
 	Request     []byte
 }
 

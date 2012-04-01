@@ -13,7 +13,7 @@ import (
 
 type HttpServerHandler struct {
 	NumHandlers int
-	count       int
+	Count       int
 	id          uint32
 	logConfig   *log4go.LogConfig
 	logger      log4go.Logger
@@ -25,10 +25,10 @@ func NewHttpServerHandler(logConfig *log4go.LogConfig, numHandlers int, tag stri
 }
 
 func (h *HttpServerHandler) Spawn() (ServerHandler, os.Error) {
-	if h.count < h.NumHandlers {
-		h.count++
+	if h.Count < h.NumHandlers {
+		h.Count++
 		handler := &HttpServerHandler{}
-		handler.id = uint32(h.count)
+		handler.id = uint32(h.Count)
 		handler.logConfig = h.logConfig
 		handler.tag = h.tag
 		return handler, nil
@@ -62,6 +62,7 @@ func (h *HttpServerHandler) Cleanup() {
 }
 
 func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
+	println("htttpserver handle")
 	uHttpRequest, err := h.ReceiveRequest(connection)
 	if err != nil {
 		if err != io.ErrUnexpectedEOF {
