@@ -2,13 +2,15 @@ package ptcp
 
 import "http"
 import "os"
+import "bytes"
 
 const (
 	DefaultErrorResponse = "HTTP/1.1 500\r\nConnection: close\r\nContent-Type: text/html;\r\nContent-Length: 21\r\n\r\nInternal Server Error"
 	DefaultOKResponse    = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain;\r\nContent-Length: 2\r\n\r\nOK"
 )
 
-var HttpHeaderBodySep = []byte("\r\n\r\n")
+var HttpHeaderBodySepSig = []byte("\r\n\r\n")
+var HttpHeaderBodySep = []byte("\r\n")
 var ContentEncodingKey = http.CanonicalHeaderKey("content-encoding")
 var ErrorHttpServerShouldSaveReadData = os.NewError("Server context should set SaveReadData to true")
 var ErrorIncompleteRequest = os.NewError("Incomplete Http Request")
@@ -78,5 +80,19 @@ type UpstreamHttpResponse struct {
 }
 
 func (resp *UpstreamHttpResponse) Bytes() []byte {
-	return append(resp.RawHeader, resp.Body...)
+	data := append(resp.RawHeader, HttpHeaderBodySep...)
+	data = append(data, resp.Body...)
+	return data
+}
+
+func SeparateHttpHeaderBody(raw []byte) (header, body []byte, err os.Error) {
+	endOfHeader := bytes.Index(raw, HttpHeaderBodySepSig)
+	if endOfHeader < 0 {
+		err = ErrorIncompleteResponse
+		return
+	}
+	endOfHeader += 4
+	header = raw[:endOfHeader-2]
+	body = raw[endOfHeader:]
+	return
 }
