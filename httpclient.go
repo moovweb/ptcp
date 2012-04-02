@@ -57,14 +57,13 @@ func (hch *HttpClientHandler) Handle(connection *TcpConnection, request Request)
 
 	//separate the raw response into header and body
 	rawResponse = connection.RawData()
-	endOfHeader := bytes.Index(rawResponse, HttpHeaderBodySep)
-	if endOfHeader < 0 {
-		err = ErrorIncompleteResponse
+	RawHeader, RawBody, err := SeparateHttpHeaderBody(rawResponse)
+	if err != nil {
+		println("err here:", err.String())
 		return
 	}
-	endOfHeader += 4
-	RawHeader := rawResponse[:endOfHeader]
-	uResponse.Body = rawResponse[endOfHeader:]
+
+	uResponse.Body = RawBody
 
 	//detect if the raw response contains chunked encoding
 	//should use a regex
@@ -87,7 +86,7 @@ func (hch *HttpClientHandler) Handle(connection *TcpConnection, request Request)
 		io.WriteString(w, text+"\r\n")
 		httpResponse.Header.Write(w)
 		//end of header
-		io.WriteString(w, "\r\n")
+		//io.WriteString(w, "\r\n")
 		RawHeader = w.Bytes()
 		uResponse.Body = body
 	}

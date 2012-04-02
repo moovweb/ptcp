@@ -64,7 +64,6 @@ func (h *HttpServerHandler) Cleanup() {
 }
 
 func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
-	println("htttpserver handle")
 	uHttpRequest, err := h.ReceiveRequest(connection)
 	if err != nil {
 		if err != io.ErrUnexpectedEOF {
