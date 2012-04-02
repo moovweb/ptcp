@@ -33,7 +33,7 @@ type EchoServerHandler struct {
 	buffer []byte
 }
 
-func (h *EchoServerHandler) Spawn() (newH ServerHandler, err os.Error) {
+func (h *EchoServerHandler) Spawn() (newH interface{}, err os.Error) {
 	if h.count < HandlerLimit {
 		h.count++
 		handler := &EchoServerHandler{}

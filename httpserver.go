@@ -26,7 +26,7 @@ func NewHttpServerHandler(logConfig *log4go.LogConfig, numHandlers int, tag stri
 	return &HttpServerHandler{logConfig: logConfig, NumHandlers: numHandlers, tag: tag}
 }
 
-func (h *HttpServerHandler) Spawn() (ServerHandler, os.Error) {
+func (h *HttpServerHandler) Spawn() (interface{}, os.Error) {
 	if h.Count < h.NumHandlers {
 		h.Count++
 		handler := &HttpServerHandler{}

@@ -21,16 +21,14 @@ import (
 	"log4go"
 )
 
+type Spawner interface {
+	Spawn() (interface{}, os.Error)
+}
+
 type ServerHandler interface {
-	/*
-		GetId() uint32
-		GetLogConfig() *log4go.LogConfig
-		GetServerTag() string
-		GetLogger() log4go.Logger
-	*/
+	Spawner
 	Handle(*TcpConnection) os.Error
 	Cleanup()
-	Spawn() (ServerHandler, os.Error)
 	Logger() log4go.Logger
 	Tag() string
 	ConnectionQueueLength() int
@@ -87,7 +85,8 @@ func serve(listener net.Listener, h ServerHandler) os.Error {
 	connectionQueue := make(chan *TcpConnection, connQueueLen)
 	count := 0
 	for newH, err := h.Spawn(); err == nil; newH, err = h.Spawn() {
-		go handleConnections(connectionQueue, newH)
+		newServerHandler := newH.(ServerHandler)
+		go handleConnections(connectionQueue, newServerHandler)
 		count++
 	}
 	logger.Info("Created %d handlers for server: %q", count, h.Tag())
