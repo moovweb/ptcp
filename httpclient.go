@@ -88,6 +88,11 @@ func (hch *HttpClientHandler) Handle(connection *TcpConnection, request Request)
 		//end of header
 		//io.WriteString(w, "\r\n")
 		RawHeader = w.Bytes()
+		if headerLen := len(RawHeader); headerLen > 2 {
+			if string(RawHeader[headerLen-2:]) == "\r\n" {
+				RawHeader = RawHeader[:headerLen-2]
+			}
+		}
 		uResponse.Body = body
 	}
 
