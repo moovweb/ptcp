@@ -10,7 +10,6 @@ const (
 )
 
 var HttpHeaderBodySepSig = []byte("\r\n\r\n")
-var HttpHeaderBodySep = []byte("\r\n")
 var ContentEncodingKey = http.CanonicalHeaderKey("content-encoding")
 var ErrorHttpServerShouldSaveReadData = os.NewError("Server context should set SaveReadData to true")
 var ErrorIncompleteRequest = os.NewError("Incomplete Http Request")
@@ -80,7 +79,7 @@ type UpstreamHttpResponse struct {
 }
 
 func (resp *UpstreamHttpResponse) Bytes() []byte {
-	data := append(resp.RawHeader, HttpHeaderBodySep...)
+	data := append(resp.RawHeader, HttpHeaderBodySepSig...)
 	data = append(data, resp.Body...)
 	return data
 }
@@ -92,7 +91,7 @@ func SeparateHttpHeaderBody(raw []byte) (header, body []byte, err os.Error) {
 		return
 	}
 	endOfHeader += 4
-	header = raw[:endOfHeader-2]
+	header = raw[:endOfHeader-4]
 	body = raw[endOfHeader:]
 	return
 }
