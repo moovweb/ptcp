@@ -53,10 +53,10 @@ func handleConnections(connectionQueue chan *TcpConnection, h ServerHandler) {
 		connection := <-connectionQueue
 		err := h.Handle(connection)
 		if err == ErrorClientCloseConnection {
-			logger.Info("Server handler is closing connection because the client has closed it: %q", connection.RemoteAddr())
+			//logger.Info("Server handler is closing connection because the client has closed it: %q", connection.RemoteAddr())
 			connection.Close()
 		} else if err == ErrorServerCloseConnection {
-			logger.Info("Server handler is closing connection: %q", connection.RemoteAddr())
+			//logger.Info("Server handler is closing connection: %q", connection.RemoteAddr())
 			connection.Close()
 		} else if err != nil {
 			logger.Warn("Server handler is closing connection due to error: %v", err)
