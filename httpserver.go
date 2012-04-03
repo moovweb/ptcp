@@ -14,7 +14,7 @@ import (
 type HttpServerHandler struct {
 	NumHandlers int
 	Count       int
-	id          uint32
+	Id          uint32
 	logConfig   *log4go.LogConfig
 	logger      log4go.Logger
 	tag         string
@@ -30,7 +30,7 @@ func (h *HttpServerHandler) Spawn() (interface{}, os.Error) {
 	if h.Count < h.NumHandlers {
 		h.Count++
 		handler := &HttpServerHandler{}
-		handler.id = uint32(h.Count)
+		handler.Id = uint32(h.Count)
 		handler.logConfig = h.logConfig
 		handler.tag = h.tag
 		return handler, nil
@@ -47,10 +47,10 @@ func (h *HttpServerHandler) Logger() log4go.Logger {
 }
 
 func (h *HttpServerHandler) Tag() (tag string) {
-	if h.id == 0 {
+	if h.Id == 0 {
 		tag = fmt.Sprintf("%s", h.tag)
 	} else {
-		tag = fmt.Sprintf("%s (%d)", h.tag, h.id)
+		tag = fmt.Sprintf("%s (%d)", h.tag, h.Id)
 	}
 	return
 }
