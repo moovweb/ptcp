@@ -9,6 +9,7 @@ import "bufio"
 import "bytes"
 import "http"
 
+//use a different port from the echo test because linux does not like the two tests using the same port
 const TestAddr2 = "localhost:13253"
 
 func TestHttpClientServer(t *testing.T) {
