@@ -15,6 +15,8 @@ const DefaultReuqest = "Hello"
 const DefaultResponse = "World"
 const HandlerLimit = 8
 
+const TestAddr = "localhost:13252"
+
 type DataStream string
 
 func (d *DataStream) Bytes() []byte {
@@ -111,7 +113,7 @@ func (ech *EchoClientHandler) Handle(connection *TcpConnection, request Request)
 }
 
 func TestEcho(t *testing.T) {
-	address := "localhost:9090"
+	address := TestAddr
 	wg := &sync.WaitGroup{}
 	clientHandler := NewEchoClientHandler()
 	serverHandler := &EchoServerHandler{}
@@ -163,7 +165,7 @@ func TestEchoSSL(t *testing.T) {
 */
 func BenchmarkEcho(b *testing.B) {
 	b.StopTimer()
-	address := "localhost:9090"
+	address := TestAddr
 	clientHandler := NewEchoClientHandler()
 	serverHandler := &EchoServerHandler{}
 	ListenAndServe(address, serverHandler, false)

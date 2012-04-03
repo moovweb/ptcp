@@ -9,8 +9,10 @@ import "bufio"
 import "bytes"
 import "http"
 
+const TestAddr2 = "localhost:13253"
+
 func TestHttpClientServer(t *testing.T) {
-	address := "localhost:9090"
+	address := TestAddr2
 	wg := &sync.WaitGroup{}
 	clientHandler := &HttpClientHandler{}
 	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.INFO)}
@@ -49,7 +51,7 @@ func TestHttpClientServer(t *testing.T) {
 
 func BenchmarkHttpClientServer(b *testing.B) {
 	b.StopTimer()
-	address := "localhost:9090"
+	address := TestAddr2
 	clientHandler := &HttpClientHandler{}
 	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.INFO)}
 	serverHandler := NewHttpServerHandler(logConfig, 1, "test_http_srv")
