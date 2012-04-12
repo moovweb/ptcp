@@ -13,21 +13,22 @@
 package ptcp
 
 import (
-	"net"
-	"os"
 	"crypto/rand"
 	"crypto/tls"
-	"time"
+	"errors"
+	"io"
 	"log4go"
+	"net"
+	"time"
 )
 
 type Spawner interface {
-	Spawn() (interface{}, os.Error)
+	Spawn() (interface{}, error)
 }
 
 type ServerHandler interface {
 	Spawner
-	Handle(*TcpConnection) os.Error
+	Handle(*TcpConnection) error
 	Cleanup()
 	Logger() log4go.Logger
 	Tag() string
@@ -35,9 +36,9 @@ type ServerHandler interface {
 }
 
 var (
-	ErrHandlerLimitReached     = os.NewError("Handler limit reached")
-	ErrorClientCloseConnection = os.EOF
-	ErrorServerCloseConnection = os.NewError("server needs to close the connection")
+	ErrHandlerLimitReached     = errors.New("Handler limit reached")
+	ErrorClientCloseConnection = io.EOF
+	ErrorServerCloseConnection = errors.New("server needs to close the connection")
 )
 
 func handleConnections(connectionQueue chan *TcpConnection, h ServerHandler) {
@@ -74,7 +75,7 @@ func handleConnections(connectionQueue chan *TcpConnection, h ServerHandler) {
  * then call connection.Handler to reply to them.
  */
 
-func serve(listener net.Listener, h ServerHandler) os.Error {
+func serve(listener net.Listener, h ServerHandler) error {
 	defer listener.Close()
 
 	logger := h.Logger()
@@ -111,7 +112,7 @@ func serve(listener net.Listener, h ServerHandler) os.Error {
 	panic("should not be reached")
 }
 
-func listen(addr string, ssl bool) (listener net.Listener, err os.Error) {
+func listen(addr string, ssl bool) (listener net.Listener, err error) {
 	if addr == "" {
 		if ssl {
 			addr = ":https"
@@ -122,7 +123,7 @@ func listen(addr string, ssl bool) (listener net.Listener, err os.Error) {
 	return net.Listen("tcp", addr)
 }
 
-func ListenAndServe(addr string, h ServerHandler, blocking bool) os.Error {
+func ListenAndServe(addr string, h ServerHandler, blocking bool) error {
 	listener, err := listen(addr, false)
 	if err != nil {
 		return err
@@ -135,14 +136,14 @@ func ListenAndServe(addr string, h ServerHandler, blocking bool) os.Error {
 	return nil
 }
 
-func ListenAndServeTLS(addr string, h ServerHandler, blocking bool, certFile string, keyFile string) os.Error {
+func ListenAndServeTLS(addr string, h ServerHandler, blocking bool, certFile string, keyFile string) error {
 	config := &tls.Config{
 		Rand:       rand.Reader,
-		Time:       time.Seconds,
+		Time:       time.Now,
 		NextProtos: []string{"http/1.1"},
 	}
 
-	var err os.Error
+	var err error
 	config.Certificates = make([]tls.Certificate, 1)
 	config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {

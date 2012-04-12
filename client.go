@@ -13,12 +13,12 @@
 package ptcp
 
 import (
-	"net"
-	"os"
 	"crypto/tls"
+	"errors"
+	"net"
 )
 
-var ErrorMissingClientHandler = os.NewError("Client missing a handler")
+var ErrorMissingClientHandler = errors.New("Client missing a handler")
 
 type Request interface {
 	Bytes() []byte
@@ -28,7 +28,7 @@ type Response interface {
 	Bytes() []byte
 }
 
-func Connect(addr string) (connection *TcpConnection, err os.Error) {
+func Connect(addr string) (connection *TcpConnection, err error) {
 	if addr == "" {
 		addr = ":http"
 	}
@@ -40,7 +40,7 @@ func Connect(addr string) (connection *TcpConnection, err os.Error) {
 	return
 }
 
-func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection *TcpConnection, err os.Error) {
+func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection *TcpConnection, err error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection
 	return
 }
 
-func SendAndReceive(connection *TcpConnection, handler ClientHandler, request Request) (Response, os.Error) {
+func SendAndReceive(connection *TcpConnection, handler ClientHandler, request Request) (Response, error) {
 	if handler == nil {
 		return nil, ErrorMissingClientHandler
 	}
@@ -69,5 +69,5 @@ func SendAndReceive(connection *TcpConnection, handler ClientHandler, request Re
 }
 
 type ClientHandler interface {
-	Handle(*TcpConnection, Request) (Response, os.Error)
+	Handle(*TcpConnection, Request) (Response, error)
 }

@@ -1,13 +1,12 @@
 package ptcp
 
 import (
-	"os"
-	"http"
-	"log4go"
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"bufio"
+	"log4go"
+	"net/http"
 	"strings"
 )
 
@@ -26,7 +25,7 @@ func NewHttpServerHandler(logConfig *log4go.LogConfig, numHandlers int, tag stri
 	return &HttpServerHandler{logConfig: logConfig, NumHandlers: numHandlers, tag: tag}
 }
 
-func (h *HttpServerHandler) Spawn() (interface{}, os.Error) {
+func (h *HttpServerHandler) Spawn() (interface{}, error) {
 	if h.Count < h.NumHandlers {
 		h.Count++
 		handler := &HttpServerHandler{}
@@ -63,13 +62,13 @@ func (h *HttpServerHandler) Cleanup() {
 	return
 }
 
-func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
+func (h *HttpServerHandler) Handle(connection *TcpConnection) (err error) {
 	uHttpRequest, err := h.ReceiveRequest(connection)
 	if err != nil {
 		if err != io.ErrUnexpectedEOF {
 			h.logger.Error("ReceiveDownstreamRequest error: %v", err)
 		} else {
-			err = os.EOF //client has closed the connection?
+			err = io.EOF //client has closed the connection?
 		}
 		return
 	}
@@ -90,7 +89,7 @@ func (h *HttpServerHandler) Handle(connection *TcpConnection) (err os.Error) {
 	return
 }
 
-func (h *HttpServerHandler) ReceiveRequest(connection *TcpConnection) (uHttpRequest *UpstreamHttpRequest, err os.Error) {
+func (h *HttpServerHandler) ReceiveRequest(connection *TcpConnection) (uHttpRequest *UpstreamHttpRequest, err error) {
 	br := bufio.NewReader(connection)
 	httpRequest, err := http.ReadRequest(br)
 	if err != nil {

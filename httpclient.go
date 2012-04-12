@@ -1,25 +1,24 @@
 package ptcp
 
 import (
-	"os"
-	"http"
 	"bufio"
-	"io/ioutil"
 	"bytes"
-	"strings"
-	"compress/gzip"
 	"compress/flate"
-	"strconv"
+	"compress/gzip"
+	"errors"
 	"io"
+	"io/ioutil"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
-var ErrInvalidRequestType = os.NewError("expect request to be of UpstreamHttpRequest")
+var ErrInvalidRequestType = errors.New("expect request to be of UpstreamHttpRequest")
 
 type HttpClientHandler struct {
-
 }
 
-func (hch *HttpClientHandler) Handle(connection *TcpConnection, request Request) (response Response, err os.Error) {
+func (hch *HttpClientHandler) Handle(connection *TcpConnection, request Request) (response Response, err error) {
 	upstreamReq, ok := request.(*UpstreamHttpRequest)
 	if !ok {
 		err = ErrInvalidRequestType
@@ -59,7 +58,7 @@ func (hch *HttpClientHandler) Handle(connection *TcpConnection, request Request)
 	rawResponse = connection.RawData()
 	RawHeader, RawBody, err := SeparateHttpHeaderBody(rawResponse)
 	if err != nil {
-		println("err here:", err.String())
+		println("err here:", err.Error())
 		return
 	}
 

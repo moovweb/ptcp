@@ -11,18 +11,17 @@ package ptcp
 
 import (
 	"bytes"
-	"net"
-	"os"
 	"crypto/tls"
+	"errors"
+	"io"
+	"net"
 )
 
 // TcpConnection is a thin wrapper around TCP socket connection
 type TcpConnection struct {
-	tlsState     *tls.ConnectionState //TLS state info
-	readTimeout  int64                //read timeout
-	writeTimeout int64                //write timeout
-	rawData      *bytes.Buffer        //save the rawData as we parse it
-	net.Conn                          //socket connection
+	tlsState *tls.ConnectionState //TLS state info
+	rawData  *bytes.Buffer        //save the rawData as we parse it
+	net.Conn                      //socket connection
 }
 
 //InitialBufferLength is the size of buffer allocated initially.
@@ -32,14 +31,14 @@ const InitialBufferLength = 64 * 1024 //64K bytes
 
 var (
 	//Handshake failure
-	ErrorTLSHandshake = os.NewError("Handshake Failed")
-	ErrorReadTimeout  = os.NewError("Invalid Read Timeout")
-	ErrorWriteTimeout = os.NewError("Invalid Write Timeout")
+	ErrorTLSHandshake = errors.New("Handshake Failed")
+	ErrorReadTimeout  = errors.New("Invalid Read Timeout")
+	ErrorWriteTimeout = errors.New("Invalid Write Timeout")
 )
 
 //Wrap a tcp connection into a TcpConnection object
 //
-func NewTcpConnection(conn net.Conn) (connection *TcpConnection, err os.Error) {
+func NewTcpConnection(conn net.Conn) (connection *TcpConnection, err error) {
 	if tlsConn, ok := conn.(*tls.Conn); ok {
 		err = tlsConn.Handshake()
 		if err != nil {
@@ -58,22 +57,6 @@ func NewTcpConnection(conn net.Conn) (connection *TcpConnection, err os.Error) {
 	return
 }
 
-func (connection *TcpConnection) SetReadTimeout(readTimeout int64) (err os.Error) {
-	if readTimeout > 0 {
-		connection.readTimeout = readTimeout
-		return connection.Conn.SetReadTimeout(connection.readTimeout)
-	}
-	return ErrorReadTimeout
-}
-
-func (connection *TcpConnection) SetWriteTimeout(writeTimeout int64) (err os.Error) {
-	if writeTimeout > 0 {
-		connection.writeTimeout = writeTimeout
-		return connection.Conn.SetWriteTimeout(connection.writeTimeout)
-	}
-	return ErrorWriteTimeout
-}
-
 func (connection *TcpConnection) EnableSaveReadData() {
 	if connection.rawData == nil {
 		buffer := make([]byte, 0, InitialBufferLength)
@@ -85,9 +68,9 @@ func (connection *TcpConnection) DisableSaveReadData() {
 	connection.rawData = nil
 }
 
-func (connection *TcpConnection) Read(data []byte) (n int, err os.Error) {
+func (connection *TcpConnection) Read(data []byte) (n int, err error) {
 	n, err = connection.Conn.Read(data) //calling the underlying socket's Read
-	if (err == nil || err == os.EOF) && n > 0 && connection.rawData != nil {
+	if (err == nil || err == io.EOF) && n > 0 && connection.rawData != nil {
 		nn, err1 := connection.rawData.Write(data[:n])
 		if err1 != nil {
 			connection.rawData.Reset()
@@ -99,14 +82,14 @@ func (connection *TcpConnection) Read(data []byte) (n int, err os.Error) {
 	return n, err
 }
 
-func (connection *TcpConnection) Close() os.Error {
+func (connection *TcpConnection) Close() error {
 	if connection.rawData != nil {
 		connection.rawData.Reset()
 	}
 	return connection.Conn.Close()
 }
 
-func (connection *TcpConnection) Reset() os.Error {
+func (connection *TcpConnection) Reset() error {
 	if connection.rawData != nil {
 		connection.rawData.Reset()
 	}

@@ -1,12 +1,13 @@
 package ptcp
 
 import (
-	"testing"
-	"os"
-	"log4go"
-	"log"
 	"fmt"
+	"io"
+	"log"
+	"log4go"
+	"os"
 	"sync"
+	"testing"
 )
 
 const requestBufferSize = 1000
@@ -35,7 +36,7 @@ type EchoServerHandler struct {
 	buffer []byte
 }
 
-func (h *EchoServerHandler) Spawn() (newH interface{}, err os.Error) {
+func (h *EchoServerHandler) Spawn() (newH interface{}, err error) {
 	if h.count < HandlerLimit {
 		h.count++
 		handler := &EchoServerHandler{}
@@ -57,7 +58,7 @@ func (h *EchoServerHandler) Logger() log4go.Logger {
 	return h.logger
 }
 
-func (h *EchoServerHandler) Handle(connection *TcpConnection) (err os.Error) {
+func (h *EchoServerHandler) Handle(connection *TcpConnection) (err error) {
 	_, err = connection.Read(h.buffer)
 	if err != nil {
 		return
@@ -95,14 +96,14 @@ func NewEchoClientHandler() *EchoClientHandler {
 	return ech
 }
 
-func (ech *EchoClientHandler) Handle(connection *TcpConnection, request Request) (response Response, err os.Error) {
+func (ech *EchoClientHandler) Handle(connection *TcpConnection, request Request) (response Response, err error) {
 	_, err = connection.Write(DefaultReuqestBytes)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "err : %v\n", err)
 		return nil, err
 	}
 	n, err := connection.Read(ech.Buffer)
-	if err == os.EOF {
+	if err == io.EOF {
 		err = nil
 	}
 	if err != nil {

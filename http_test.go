@@ -7,7 +7,7 @@ import "fmt"
 import "log"
 import "bufio"
 import "bytes"
-import "http"
+import "net/http"
 
 //use a different port from the echo test because linux does not like the two tests using the same port
 const TestAddr2 = "localhost:13253"
@@ -78,7 +78,7 @@ func BenchmarkHttpClientServer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := SendAndReceive(connection, clientHandler, uHttpRequest)
 		if err != nil {
-			log.Fatalf("err: %s", err.String())
+			log.Fatalf("err: %s", err.Error())
 		}
 	}
 }

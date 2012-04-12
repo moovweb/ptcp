@@ -1,7 +1,10 @@
 package ptcp
 
-import "http"
-import "os"
+import (
+	"errors"
+	"net/http"
+)
+
 import "bytes"
 
 const (
@@ -11,9 +14,9 @@ const (
 
 var HttpHeaderBodySepSig = []byte("\r\n\r\n")
 var ContentEncodingKey = http.CanonicalHeaderKey("content-encoding")
-var ErrorHttpServerShouldSaveReadData = os.NewError("Server context should set SaveReadData to true")
-var ErrorIncompleteRequest = os.NewError("Incomplete Http Request")
-var ErrorIncompleteResponse = os.NewError("Incomplete Http Response")
+var ErrorHttpServerShouldSaveReadData = errors.New("Server context should set SaveReadData to true")
+var ErrorIncompleteRequest = errors.New("Incomplete Http Request")
+var ErrorIncompleteResponse = errors.New("Incomplete Http Response")
 
 var statusText = map[int]string{
 	http.StatusContinue:           "Continue",
@@ -84,7 +87,7 @@ func (resp *UpstreamHttpResponse) Bytes() []byte {
 	return data
 }
 
-func SeparateHttpHeaderBody(raw []byte) (header, body []byte, err os.Error) {
+func SeparateHttpHeaderBody(raw []byte) (header, body []byte, err error) {
 	endOfHeader := bytes.Index(raw, HttpHeaderBodySepSig)
 	if endOfHeader < 0 {
 		err = ErrorIncompleteResponse
