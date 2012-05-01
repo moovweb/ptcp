@@ -32,7 +32,7 @@ func Connect(addr string) (connection *TcpConnection, err os.Error) {
 	if addr == "" {
 		addr = ":http"
 	}
-	conn, err := net.Dial("tcp", addr)
+	conn, err := net.Dial("tcp4", addr)
 	if err != nil {
 		return
 	}
@@ -41,7 +41,7 @@ func Connect(addr string) (connection *TcpConnection, err os.Error) {
 }
 
 func ConnectTLS(addr string, hostName string, shouldVerifyHost bool) (connection *TcpConnection, err os.Error) {
-	conn, err := net.Dial("tcp", addr)
+	conn, err := net.Dial("tcp4", addr)
 	if err != nil {
 		return nil, err
 	}
