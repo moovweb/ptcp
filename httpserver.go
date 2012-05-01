@@ -96,6 +96,7 @@ func (h *HttpServerHandler) ReceiveRequest(connection *TcpConnection) (uHttpRequ
 	if err != nil {
 		return
 	}
+	httpRequest.RemoteAddr = connection.RemoteAddr().String()
 	_, err = ioutil.ReadAll(httpRequest.Body)
 	if err != nil {
 		recvd := connection.RawData()
