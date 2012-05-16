@@ -3,9 +3,9 @@ package ptcp
 import (
 	"bufio"
 	"fmt"
+	"golog"
 	"io"
 	"io/ioutil"
-	"log4go"
 	"net/http"
 	"strings"
 )
@@ -14,15 +14,14 @@ type HttpServerHandler struct {
 	NumHandlers int
 	Count       int
 	Id          uint32
-	logConfig   *log4go.LogConfig
-	logger      log4go.Logger
+	logger      *golog.Logger
 	tag         string
 }
 
 const DefaultConnectionQueueLength = 128
 
-func NewHttpServerHandler(logConfig *log4go.LogConfig, numHandlers int, tag string) *HttpServerHandler {
-	return &HttpServerHandler{logConfig: logConfig, NumHandlers: numHandlers, tag: tag}
+func NewHttpServerHandler(logger *golog.Logger, numHandlers int, tag string) *HttpServerHandler {
+	return &HttpServerHandler{logger: logger, NumHandlers: numHandlers, tag: tag}
 }
 
 func (h *HttpServerHandler) Spawn() (interface{}, error) {
@@ -30,18 +29,14 @@ func (h *HttpServerHandler) Spawn() (interface{}, error) {
 		h.Count++
 		handler := &HttpServerHandler{}
 		handler.Id = uint32(h.Count)
-		handler.logConfig = h.logConfig
+		handler.logger = h.logger
 		handler.tag = h.tag
 		return handler, nil
 	}
 	return nil, ErrHandlerLimitReached
 }
 
-func (h *HttpServerHandler) Logger() log4go.Logger {
-	if h.logger == nil {
-		logPrefix := fmt.Sprintf("%s", h.Tag())
-		h.logger = log4go.NewLoggerFromConfig(h.logConfig, logPrefix)
-	}
+func (h *HttpServerHandler) Logger() *golog.Logger {
 	return h.logger
 }
 

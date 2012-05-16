@@ -2,12 +2,12 @@ package ptcp
 
 import "testing"
 import "sync"
-import "log4go"
 import "fmt"
 import "log"
 import "bufio"
 import "bytes"
 import "net/http"
+import "golog"
 
 //use a different port from the echo test because linux does not like the two tests using the same port
 const TestAddr2 = "localhost:13253"
@@ -16,8 +16,9 @@ func TestHttpClientServer(t *testing.T) {
 	address := TestAddr2
 	wg := &sync.WaitGroup{}
 	clientHandler := &HttpClientHandler{}
-	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.INFO)}
-	serverHandler := NewHttpServerHandler(logConfig, 4, "test_http_srv")
+	logger := golog.NewLogger("")
+	logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO))
+	serverHandler := NewHttpServerHandler(logger, 4, "test_http_srv")
 	ListenAndServe(address, serverHandler, false)
 	uHttpRequest := &UpstreamHttpRequest{}
 	uHttpRequest.Request = ([]byte)("GET / HTTP/1.1\r\n\r\n")
@@ -54,8 +55,9 @@ func BenchmarkHttpClientServer(b *testing.B) {
 	b.StopTimer()
 	address := TestAddr2
 	clientHandler := &HttpClientHandler{}
-	logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.INFO)}
-	serverHandler := NewHttpServerHandler(logConfig, 1, "test_http_srv")
+	logger := golog.NewLogger("")
+	logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO))
+	serverHandler := NewHttpServerHandler(logger, 1, "test_http_srv")
 	ListenAndServe(address, serverHandler, false)
 	uHttpRequest := &UpstreamHttpRequest{}
 	uHttpRequest.Request = ([]byte)("GET / HTTP/1.1\r\nConnection: keep-alive\r\n\r\n")

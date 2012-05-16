@@ -16,8 +16,8 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"errors"
+	"golog"
 	"io"
-	"log4go"
 	"net"
 	"time"
 )
@@ -30,7 +30,7 @@ type ServerHandler interface {
 	Spawner
 	Handle(*TcpConnection) error
 	Cleanup()
-	Logger() log4go.Logger
+	Logger() *golog.Logger
 	Tag() string
 	ConnectionQueueLength() int
 }
@@ -60,7 +60,7 @@ func handleConnections(connectionQueue chan *TcpConnection, h ServerHandler) {
 			//logger.Info("Server handler is closing connection: %q", connection.RemoteAddr())
 			connection.Close()
 		} else if err != nil {
-			logger.Warn("Server handler is closing connection due to error: %v", err)
+			logger.Warning("Server handler is closing connection due to error: %v", err)
 			connection.Close()
 		} else {
 			//put it back into the queue

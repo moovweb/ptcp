@@ -2,9 +2,9 @@ package ptcp
 
 import (
 	"fmt"
+	"golog"
 	"io"
 	"log"
-	"log4go"
 	"os"
 	"sync"
 	"testing"
@@ -32,7 +32,7 @@ var (
 type EchoServerHandler struct {
 	count  int
 	id     uint32
-	logger log4go.Logger
+	logger *golog.Logger
 	buffer []byte
 }
 
@@ -49,11 +49,11 @@ func (h *EchoServerHandler) Spawn() (newH interface{}, err error) {
 	return
 }
 
-func (h *EchoServerHandler) Logger() log4go.Logger {
+func (h *EchoServerHandler) Logger() *golog.Logger {
 	if h.logger == nil {
-		logPrefix := fmt.Sprintf("%s Mikey", h.Tag())
-		logConfig := &log4go.LogConfig{ConsoleLogLevel: int(log4go.ERROR)}
-		h.logger = log4go.NewLoggerFromConfig(logConfig, logPrefix)
+		logger := golog.NewLogger("")
+		logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO))
+		h.logger = logger
 	}
 	return h.logger
 }
