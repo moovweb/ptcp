@@ -53,6 +53,7 @@ func (hch *HttpClientHandler) Handle(connection *TcpConnection, request Request)
 
 	uResponse := &UpstreamHttpResponse{}
 	uResponse.Header = httpResponse.Header
+	uResponse.HttpResponse = httpResponse
 
 	//separate the raw response into header and body
 	rawResponse = connection.RawData()

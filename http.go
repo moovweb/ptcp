@@ -76,9 +76,10 @@ func (req *UpstreamHttpRequest) Bytes() []byte {
 }
 
 type UpstreamHttpResponse struct {
-	Header    http.Header
-	RawHeader []byte
-	Body      []byte
+	Header       http.Header
+	RawHeader    []byte
+	Body         []byte
+	HttpResponse *http.Response
 }
 
 func (resp *UpstreamHttpResponse) Bytes() []byte {
