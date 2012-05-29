@@ -17,7 +17,7 @@ func TestHttpClientServer(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	clientHandler := &HttpClientHandler{}
 	logger := golog.NewLogger("")
-	logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO))
+	logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO, true))
 	serverHandler := NewHttpServerHandler(logger, 4, "test_http_srv")
 	ListenAndServe(address, serverHandler, false)
 	uHttpRequest := &UpstreamHttpRequest{}
@@ -56,7 +56,7 @@ func BenchmarkHttpClientServer(b *testing.B) {
 	address := TestAddr2
 	clientHandler := &HttpClientHandler{}
 	logger := golog.NewLogger("")
-	logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO))
+	logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO, true))
 	serverHandler := NewHttpServerHandler(logger, 1, "test_http_srv")
 	ListenAndServe(address, serverHandler, false)
 	uHttpRequest := &UpstreamHttpRequest{}

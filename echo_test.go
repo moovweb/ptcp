@@ -52,7 +52,7 @@ func (h *EchoServerHandler) Spawn() (newH interface{}, err error) {
 func (h *EchoServerHandler) Logger() *golog.Logger {
 	if h.logger == nil {
 		logger := golog.NewLogger("")
-		logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO))
+		logger.AddProcessor("console", golog.NewConsoleProcessor(golog.LOG_INFO, true))
 		h.logger = logger
 	}
 	return h.logger
